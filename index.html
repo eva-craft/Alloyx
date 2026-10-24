@@ -1,0 +1,3129 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Сплавий — металлургическая лаборатория</title>
+
+<style>  /* ===== МОДАЛЬНОЕ ОКНО РЕЦЕПТОВ ===== */
+  .modal{position:fixed; inset:0; background:rgba(0,0,0,.72); backdrop-filter:blur(4px);
+    display:flex; align-items:center; justify-content:center; z-index:1000;}
+  .modal.hidden{display:none;}
+  .modal-box{width:min(1100px, 94vw); height:min(760px, 90vh);
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    display:flex; flex-direction:column; overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,.6);}
+  .modal-head{display:flex; align-items:center; gap:12px; padding:10px 14px;
+    border-bottom:1px solid var(--line); background:var(--panel2); flex:none;}
+  .modal-head h3{font-size:14px; color:var(--accent2); letter-spacing:1px;}
+  .modal-body{display:grid; grid-template-columns: 320px 1fr; flex:1; min-height:0;}
+
+  .recipe-list{overflow-y:auto; border-right:1px solid var(--line); padding:6px;}
+  .recipe-item{padding:6px 8px; border-radius:7px; cursor:pointer; font-size:12px;
+    border:1px solid transparent; line-height:1.25;}
+  .recipe-item:hover{background:var(--panel2); border-color:var(--line);}
+  .recipe-item.active{background:#24303d; border-color:var(--accent);}
+  .recipe-item small{display:block; color:var(--muted); font-size:10px;}
+
+  .recipe-detail{overflow-y:auto; padding:14px 18px; min-height:0;}
+  .recipe-detail .title{font-size:20px; font-weight:700; color:var(--accent2); line-height:1.15;}
+  .recipe-detail .sub{font-size:12px; color:var(--muted); margin-bottom:12px;}
+  .recipe-detail .badge{display:inline-block; font-size:10px; padding:2px 7px;
+    border-radius:6px; background:#0b0e12; color:var(--cool); margin-right:6px; margin-bottom:10px;}
+
+  .recipe-table{width:100%; border-collapse:collapse; font-size:12px; margin:8px 0 14px;}
+  .recipe-table th, .recipe-table td{padding:5px 8px; text-align:left;
+    border-bottom:1px solid #232b34;}
+  .recipe-table th{color:var(--muted); font-weight:500; font-size:10px;
+    text-transform:uppercase; letter-spacing:1px;}
+  .recipe-table td.num{text-align:right; font-variant-numeric:tabular-nums;}
+  .recipe-table tr:hover td{background:#1a2029;}
+  .recipe-table .sym{font-weight:700; color:var(--accent2);}
+  .recipe-table .base-row td{background:#141a22;}
+
+  .recipe-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;}
+  .recipe-note{font-size:11px; color:var(--muted); line-height:1.5; margin-top:10px;
+    padding:8px 10px; background:#0b0e12; border-radius:8px; border:1px solid var(--line);}
+  :root{
+    --bg:#0d0f12; --panel:#161a20; --panel2:#1d232b; --line:#2b333d;
+    --text:#e8edf3; --muted:#8b97a6; --accent:#ff8a3d; --accent2:#ffb86b;
+    --ok:#3ddc97; --bad:#ff4d6d; --cool:#4db8ff;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; min-width:0;}
+  html,body{height:100%; width:100%; overflow:hidden;}
+  body{background:radial-gradient(1200px 800px at 70% -10%, #1a2029 0%, var(--bg) 60%);
+    color:var(--text); font-family:"Segoe UI",Roboto,Arial,sans-serif; overflow:hidden;}
+
+  #app{display:grid;
+    grid-template-columns: minmax(240px, 300px) 1fr minmax(260px, 320px);
+    grid-template-rows: 48px 1fr 120px;
+    height:100vh; width:100vw; gap:6px; padding:6px;}
+
+  header{grid-column:1/-1; display:flex; align-items:center; gap:12px; padding:0 12px;
+    background:linear-gradient(90deg,#1b212a,#12161c); border:1px solid var(--line);
+    border-radius:10px; min-height:0;}
+  header h1{font-size:16px; letter-spacing:2px; color:var(--accent2); font-weight:700;}
+  header .tag{font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .stats{margin-left:auto; display:flex; gap:14px; font-size:11px; color:var(--muted); white-space:nowrap;}
+  .stats b{color:var(--text); font-weight:600;}
+
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:8px; overflow:hidden; display:flex; flex-direction:column; min-height:0;}
+  .panel h2{font-size:10px; text-transform:uppercase; letter-spacing:1.2px;
+    color:var(--muted); margin-bottom:6px; flex:none;}
+  .scroll{overflow-y:auto; overflow-x:hidden; flex:1; min-height:0;}
+
+  #metals{grid-column:1; grid-row:2; min-height:0;}
+  .metal{display:grid; grid-template-columns: 34px 1fr auto; gap:8px; align-items:center;
+    padding:4px 6px; border-radius:8px; cursor:pointer; border:1px solid transparent; transition:.12s;}
+  .metal:hover{background:var(--panel2); border-color:var(--line);}
+  .metal .thumb{width:34px; height:34px; border-radius:8px; overflow:hidden; flex:none;
+    background-size:cover;
+    box-shadow: inset 0 1px 2px rgba(255,255,255,.25), inset 0 -2px 5px rgba(0,0,0,.55);}
+  .metal .nm{font-size:12px; line-height:1.15; min-width:0;}
+  .metal .nm small{display:block; color:var(--muted); font-size:9px;}
+  .metal .tm{font-size:10px; color:var(--muted); text-align:right;}
+  .cat-label{font-size:9px; text-transform:uppercase; letter-spacing:1px;
+    color:var(--muted); margin:8px 0 3px;}
+
+  #furnace{grid-column:2; grid-row:2; display:flex; flex-direction:column; gap:6px; min-height:0;}
+  #stage{flex:1; position:relative; min-height:0;
+    background:radial-gradient(circle at 50% 30%, #212a35, #0b0e12);
+    border:1px solid var(--line); border-radius:10px; overflow:hidden;}
+  canvas{width:100%; height:100%; display:block;}
+
+  #tempHud{position:absolute; top:8px; left:8px; background:rgba(0,0,0,.55);
+    border:1px solid var(--line); border-radius:8px; padding:6px 8px;
+    font-size:11px; line-height:1.4; backdrop-filter:blur(4px);}
+  #tempHud .big{font-size:18px; font-weight:700; color:var(--accent2);}
+  #phaseHud{position:absolute; top:8px; right:8px; background:rgba(0,0,0,.55);
+    border:1px solid var(--line); border-radius:8px; padding:6px 8px;
+    font-size:11px; text-align:right; backdrop-filter:blur(4px);}
+
+  #resultCard{position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
+    background:rgba(10,13,17,.82); border:1px solid var(--line); border-radius:12px;
+    padding:8px 14px; display:flex; align-items:center; gap:12px;
+    backdrop-filter:blur(8px); box-shadow:0 8px 30px rgba(0,0,0,.5);
+    transition:opacity .3s; max-width:calc(100% - 20px);}
+  #resultCard.hidden{opacity:0; pointer-events:none;}
+  #resultCard .preview{width:52px; height:52px; border-radius:10px; overflow:hidden; flex:none;
+    background-size:cover;
+    box-shadow: inset 0 1px 3px rgba(255,255,255,.25), inset 0 -3px 6px rgba(0,0,0,.6), 0 4px 12px rgba(0,0,0,.5);}
+  #resultCard .info{display:flex; flex-direction:column; gap:2px; min-width:0;}
+  #resultCard .name{font-size:17px; font-weight:700; color:var(--accent2); line-height:1.1;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  #resultCard .sub{font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  #resultCard .tmBadge{font-size:11px; padding:2px 6px; border-radius:6px;
+    background:#0b0e12; color:var(--cool); font-weight:600; white-space:nowrap;}
+
+  .controls{flex:none; display:grid; grid-template-columns: 1fr 1fr; gap:6px;}
+  .controls .row{display:flex; gap:6px; align-items:center;
+    background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:6px;}
+  .controls label{font-size:11px; color:var(--muted); white-space:nowrap;}
+  .mass-input{width:92px;padding:2px 4px;font-size:11px;background:#0b0e12;
+    color:var(--text);border:1px solid var(--line);border-radius:5px;text-align:right;}
+  .mass-input.invalid{border-color:var(--bad);}
+  .charge-item .frac{font-size:9px;color:var(--muted);margin-left:2px;white-space:nowrap;}
+  button{border:none; border-radius:8px; padding:8px 10px; font-size:12px; font-weight:600;
+    cursor:pointer; transition:.12s; background:#2a323d; color:var(--text);}
+  button:hover{filter:brightness(1.15);}
+  .btn-primary{background:linear-gradient(180deg,#ff9a4d,#e8641c); color:#1a0d00;}
+  .btn-cast{background:linear-gradient(180deg,#4db8ff,#1d7fc4); color:#001522;}
+  .btn-danger{background:linear-gradient(180deg,#ff6b81,#c2183a); color:#fff;}
+  .btn-clean{background:#24303d;}
+
+  #right{grid-column:3; grid-row:2; display:flex; flex-direction:column; gap:6px; min-height:0;}
+
+/* Панели «Состав», «Свойства», «Доп. расчёты» — растягиваются,
+   получая приоритет по высоте. Шихта и Экспорт — фиксируются по контенту. */
+#right #charge   { flex: 0 0 auto; max-height: 26%; }
+#right #composition,
+#right #props,
+#right #advanced { flex: 1 1 0; min-height: 90px; }
+#right #exportPanel { flex: 0 0 auto; }
+  #right .panel{flex:1; min-height:0;}
+  .charge-item{display:flex; justify-content:space-between; align-items:center; gap:6px;
+    padding:4px 6px; background:var(--panel2); border:1px solid var(--line);
+    border-radius:6px; margin-bottom:4px; font-size:11px;}
+  .charge-item .thumb{width:22px; height:22px; border-radius:5px; flex:none; background-size:cover;
+    box-shadow: inset 0 1px 2px rgba(255,255,255,.25), inset 0 -2px 4px rgba(0,0,0,.55);}
+  .charge-item .x{cursor:pointer; color:var(--bad); font-weight:700; padding:0 3px;}
+  .empty{color:var(--muted); font-size:11px; padding:6px; text-align:center;}
+
+  .comp-row{display:flex; flex-direction:column; gap:2px; font-size:11px; margin-bottom:5px;}
+  .comp-row .lbl{display:flex; justify-content:space-between;}
+  .bar{height:6px; background:#0b0e12; border-radius:3px; overflow:hidden;}
+  .bar i{display:block; height:100%;}
+
+  .prop{display:flex; justify-content:space-between; font-size:11px; padding:2px 0;
+    border-bottom:1px dashed #232b34;}
+  .prop span:last-child{color:var(--accent2); font-weight:600;}
+  .prop.name-prop span:last-child{color:var(--cool); font-weight:700; max-width:60%;
+    text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+
+  #log{grid-column:1/-1; grid-row:3; background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; padding:6px 10px; overflow-y:auto;
+    font-family:Consolas,monospace; font-size:11px; line-height:1.45; min-height:0;}
+  #log .t{color:var(--muted);}
+  #log .ok{color:var(--ok);}
+  #log .warn{color:var(--accent2);}
+  #log .err{color:var(--bad);}
+  #log .cool{color:var(--cool);}
+#log{grid-column:1/2; grid-row:3; background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; padding:6px 10px; overflow-y:auto;
+    font-family:Consolas,monospace; font-size:11px; line-height:1.45; min-height:0;}
+  ::-webkit-scrollbar{width:6px; height:6px;}
+  ::-webkit-scrollbar-thumb{background:#2b333d; border-radius:3px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  @media (max-width: 1100px){
+    #app{grid-template-columns: minmax(200px, 240px) 1fr minmax(220px, 260px);}
+    .metal{grid-template-columns: 28px 1fr auto; gap:6px;}
+    .metal .thumb{width:28px; height:28px;}
+    #resultCard .name{font-size:15px;}
+    #resultCard .preview{width:44px; height:44px;}
+  }
+  @media (max-height: 700px){
+    #app{grid-template-rows: 40px 1fr 90px;}
+    header h1{font-size:14px;}
+    .controls .row{padding:4px;}
+    button{padding:6px 8px; font-size:11px;}
+    #resultCard{padding:6px 10px; gap:8px;}
+    #resultCard .name{font-size:14px;}
+    #resultCard .preview{width:40px; height:40px;}
+  }
+/* Запрет выделения текста и элементов */
+*{
+  -webkit-user-select: none;   /* Safari, Chrome */
+  -moz-user-select: none;      /* Firefox */
+  -ms-user-select: none;       /* IE/Edge */
+  user-select: none;
+  -webkit-touch-callout: none; /* запрет контекстного меню на долгий тап (iOS) */
+  -webkit-tap-highlight-color: transparent; /* убрать подсветку тапа */
+}
+
+/* Разрешить выделение и ввод там, где это реально нужно */
+input, textarea, [contenteditable="true"]{
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Запрет перетаскивания картинок/элементов */
+img, canvas, .thumb, .preview{
+  -webkit-user-drag: none;
+  user-drag: none;
+  pointer-events: auto; /* клики оставляем, drag отключаем */
+}
+
+/* Запрет зума жестами (pinch) и двойным тапом на мобильных */
+html, body{
+  touch-action: manipulation;      /* отключает двойной тап-зум, оставляет скролл */
+  -ms-touch-action: manipulation;
+  overscroll-behavior: none;       /* убирает «оттягивание» страницы */
+}
+
+/* Фиксируем масштаб вьюпорта */
+@viewport {
+  zoom: 1.0;
+  width: device-width;
+}
+
+#advanced .adv-row{display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px dashed #232b34}
+#advanced .adv-row span:last-child{color:var(--accent2);font-weight:600;text-align:right;max-width:65%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#advanced .adv-title{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:6px 0 3px}#right{grid-column:3; grid-row:2; display:flex; flex-direction:column; gap:6px; min-height:0;}
+
+/* Шихта — компактная и сжимаемая */
+#right #charge      { flex: 0 1 auto; max-height: 16%; min-height: 56px; }
+
+/* Состав и Свойства — средний вес */
+#right #composition,
+#right #props       { flex: 1 1 0; min-height: 110px; }
+
+/* Доп. расчёты — двойной вес, забирает основную высоту */
+#right #advanced    { flex: 2 1 0; min-height: 180px; }
+
+/* Экспорт — фиксирован по контенту */
+#right #exportPanel { flex: 0 0 auto; }#right{grid-column:3; grid-row:2; display:flex; flex-direction:column; gap:6px; min-height:0;}
+
+/* Шихта — заметно больше */
+#right #charge      { flex: 2 1 0; min-height: 160px; max-height: 40%; }
+
+/* Состав и Свойства — средний вес */
+#right #composition,
+#right #props       { flex: 1 1 0; min-height: 100px; }
+
+/* Доп. расчёты — тоже увеличенные */
+#right #advanced    { flex: 2 1 0; min-height: 160px; }
+
+/* Экспорт — фиксирован по контенту */
+#right #exportPanel { flex: 0 0 auto; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>СПЛАВИЙ</h1>
+    <span class="tag">металлургическая лаборатория · 50 металлов · 3396 сплавов</span><button class="btn-clean" id="btnRecipes" style="margin-left:8px">📖 Рецепты</button>
+    <div class="stats">
+      <div>Печь: <b id="hTemp">20 °C</b></div>
+      <div>Тигель: <b id="hMass">0 г</b></div>
+      <div>Фаза: <b id="hPhase">—</b></div>
+    </div>
+  </header>
+
+  <div class="panel" id="metals">
+    <h2>Металлы (50)</h2>
+    <div class="scroll" id="metalList"></div>
+  </div>
+
+  <div id="furnace">
+<button class="btn-clean" id="btnHeatTreat">Термообработка</button>
+    <div id="stage">
+      <canvas id="cv"></canvas>
+      <div id="tempHud">
+        <div>Температура</div>
+        <div class="big"><span id="tempBig">20</span> °C</div>
+        <div id="tempSub" style="color:var(--muted);font-size:10px">холодная</div>
+      </div>
+      <div id="phaseHud">
+        <div>Состояние</div>
+        <div id="phaseBig" style="font-size:14px;font-weight:700;color:var(--accent2)">—</div>
+        <div id="phaseSub" style="color:var(--muted);font-size:10px">тигель пуст</div>
+      </div>
+
+      <div id="resultCard" class="hidden">
+        <div class="preview" id="resPreview"></div>
+        <div class="info">
+          <div class="name" id="resName">—</div>
+          <div class="sub" id="resSub">—</div>
+        </div>
+        <div class="tmBadge" id="resTm">—</div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="row">
+        <label>Нагрев</label>
+        <input type="range" id="heat" min="20" max="3500" value="20" step="5">
+        <span id="heatVal" style="width:52px;text-align:right;font-size:11px">20°C</span>
+      </div>
+      <div class="row">
+        <button class="btn-primary" id="btnMelt">Плавить</button>
+        <button class="btn-clean" id="btnRefine">Рафин.</button>
+        <button class="btn-cast" id="btnCast">Разлить</button>
+        <button class="btn-danger" id="btnReset">Сброс</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="right">
+    <div class="panel" id="charge">
+      <h2>Шихта</h2>
+      <div class="scroll" id="chargeList"><div class="empty">Тигель пуст</div></div>
+    </div>
+    <div class="panel" id="composition">
+      <h2>Состав</h2>
+      <div class="scroll" id="compList"><div class="empty">Нет данных</div></div>
+    </div>
+    <div class="panel" id="props">
+      <h2>Свойства</h2>
+      <div class="scroll" id="propList"><div class="empty">—</div></div>
+    </div>
+<div class="panel" id="advanced">
+  <h2>Доп. расчёты</h2>
+  <div class="scroll" id="advList"><div class="empty">—</div></div>
+</div>
+<div class="panel" id="exportPanel" style="display:none;">
+
+  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+    <button class="btn-clean" id="btnExportJSON">JSON</button>
+    <button class="btn-clean" id="btnExportCSV">CSV</button>
+    <button class="btn-clean" id="btnValidate">Проверить</button>
+  </div>
+</div>
+  </div>
+
+  <div id="log"></div><!-- ===== МОДАЛЬНОЕ ОКНО РЕЦЕПТОВ ===== -->
+<!-- ===== МОДАЛЬНОЕ ОКНО РЕЦЕПТОВ ===== -->
+<div id="recipeModal" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Рецепты сплавов <span id="recipeCount" style="color:var(--muted);font-weight:400"></span></h3>
+      <input type="text" id="recipeSearch" placeholder="Поиск по названию, типу, основе…"
+             style="flex:1;max-width:340px;padding:6px 10px;font-size:12px;background:#0b0e12;
+                    color:var(--text);border:1px solid var(--line);border-radius:8px">
+      <button class="btn-danger" id="recipeClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="recipeList" class="recipe-list"></div>
+      <div id="recipeDetail" class="recipe-detail">
+        <div class="empty">Выберите сплав слева</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+/* ============================================================
+   1. ДАННЫЕ: 50 МЕТАЛЛОВ
+   ============================================================ */
+const METALS = [
+  {sym:"Al", name:"Алюминий",  tm:660,  rho:2.70, base:"#c7d0d8", hi:"#eef4f8", lo:"#7d878f", pat:"#9aa4ac", rough:.28, grain:.5, spec:.9,  cat:"Лёгкие"},
+  {sym:"Mg", name:"Магний",    tm:650,  rho:1.74, base:"#d3d6d0", hi:"#f5f7f2", lo:"#8b8e86", pat:"#aeb1a8", rough:.45, grain:.7, spec:.5,  cat:"Лёгкие"},
+  {sym:"Ti", name:"Титан",     tm:1668, rho:4.51, base:"#b6bcc2", hi:"#e2e6ea", lo:"#6e747a", pat:"#8f959b", rough:.35, grain:.6, spec:.7,  cat:"Лёгкие"},
+  {sym:"Be", name:"Бериллий",  tm:1287, rho:1.85, base:"#cfd5c8", hi:"#f0f4ea", lo:"#8f948a", pat:"#a8ada0", rough:.5,  grain:.7, spec:.45, cat:"Лёгкие"},
+  {sym:"Li", name:"Литий",     tm:180,  rho:0.53, base:"#e0dcc0", hi:"#f8f4d8", lo:"#9b977c", pat:"#b8b498", rough:.55, grain:.6, spec:.35, cat:"Лёгкие"},
+  {sym:"Na", name:"Натрий",    tm:98,   rho:0.97, base:"#e8e2b8", hi:"#faf6d0", lo:"#a8a078", pat:"#c0b890", rough:.6,  grain:.5, spec:.3,  cat:"Лёгкие"},
+  {sym:"K",  name:"Калий",     tm:63,   rho:0.86, base:"#e4dca8", hi:"#f8f0c0", lo:"#a89e68", pat:"#c0b880", rough:.6,  grain:.5, spec:.3,  cat:"Лёгкие"},
+  {sym:"Ca", name:"Кальций",   tm:842,  rho:1.55, base:"#d8d8cc", hi:"#f4f4e8", lo:"#9a9a8c", pat:"#b8b8a8", rough:.55, grain:.6, spec:.4,  cat:"Лёгкие"},
+
+  {sym:"Fe", name:"Железо",    tm:1538, rho:7.87, base:"#8b8f96", hi:"#c8ccd2", lo:"#4a4e54", pat:"#7a4a2a", rough:.35, grain:.7, spec:.85, cat:"Переходные"},
+  {sym:"Cu", name:"Медь",      tm:1085, rho:8.96, base:"#c8753a", hi:"#f0a86a", lo:"#7a3f1a", pat:"#5a8a6a", rough:.3,  grain:.55, spec:.95, cat:"Переходные"},
+  {sym:"Ni", name:"Никель",    tm:1455, rho:8.90, base:"#b4bcc4", hi:"#e4ecf4", lo:"#6a727a", pat:"#8a929a", rough:.28, grain:.55, spec:.9,  cat:"Переходные"},
+  {sym:"Cr", name:"Хром",      tm:1907, rho:7.19, base:"#c4ccd4", hi:"#f0f6fc", lo:"#7a828a", pat:"#9aa2aa", rough:.22, grain:.5, spec:1,   cat:"Переходные"},
+  {sym:"Mn", name:"Марганец",  tm:1246, rho:7.21, base:"#a4a4ac", hi:"#d8d8e0", lo:"#5c5c64", pat:"#7a7a82", rough:.5,  grain:.75, spec:.6, cat:"Переходные"},
+  {sym:"Co", name:"Кобальт",   tm:1495, rho:8.86, base:"#9aa4b0", hi:"#d0dae6", lo:"#525a64", pat:"#7a8290", rough:.3,  grain:.6, spec:.85, cat:"Переходные"},
+  {sym:"Zn", name:"Цинк",      tm:420,  rho:7.14, base:"#b0b8c0", hi:"#e0e8f0", lo:"#686e76", pat:"#8a9098", rough:.45, grain:.8, spec:.6,  cat:"Переходные"},
+  {sym:"V",  name:"Ванадий",   tm:1910, rho:6.11, base:"#b0b8c0", hi:"#e0e8f0", lo:"#666e76", pat:"#8a929a", rough:.35, grain:.6, spec:.8,  cat:"Переходные"},
+  {sym:"Nb", name:"Ниобий",    tm:2477, rho:8.57, base:"#a8b0bc", hi:"#d8e0ec", lo:"#5a626e", pat:"#7a8290", rough:.35, grain:.55, spec:.8, cat:"Переходные"},
+  {sym:"Mo", name:"Молибден",  tm:2623, rho:10.28,base:"#9aa0a8", hi:"#d0d6de", lo:"#4e545c", pat:"#70767e", rough:.3,  grain:.6, spec:.85, cat:"Переходные"},
+  {sym:"W",  name:"Вольфрам",  tm:3422, rho:19.25,base:"#8a9098", hi:"#c4cad2", lo:"#42474d", pat:"#5e646a", rough:.4,  grain:.65, spec:.75, cat:"Переходные"},
+  {sym:"Ta", name:"Тантал",    tm:3017, rho:16.65,base:"#9aa2ac", hi:"#d0d8e2", lo:"#4e5660", pat:"#707882", rough:.35, grain:.55, spec:.8, cat:"Переходные"},
+  {sym:"Zr", name:"Цирконий",  tm:1855, rho:6.52, base:"#c0c8d0", hi:"#ecf4fc", lo:"#787f88", pat:"#989fa8", rough:.32, grain:.6, spec:.85, cat:"Переходные"},
+  {sym:"Hf", name:"Гафний",    tm:2233, rho:13.31,base:"#b0b8c0", hi:"#e0e8f0", lo:"#606870", pat:"#808890", rough:.38, grain:.6, spec:.8, cat:"Переходные"},
+  {sym:"Re", name:"Рений",     tm:3186, rho:21.02,base:"#a0a8b0", hi:"#d4dce4", lo:"#525a62", pat:"#747c84", rough:.35, grain:.55, spec:.8, cat:"Переходные"},
+  {sym:"Os", name:"Осмий",     tm:3033, rho:22.59,base:"#9098a0", hi:"#c8d0d8", lo:"#464e56", pat:"#6a727a", rough:.4,  grain:.6, spec:.75, cat:"Переходные"},
+  {sym:"Ir", name:"Иридий",    tm:2466, rho:22.56,base:"#a8b0b8", hi:"#dce4ec", lo:"#565e66", pat:"#7a828a", rough:.3,  grain:.55, spec:.85, cat:"Переходные"},
+  {sym:"Pt", name:"Платина",   tm:1768, rho:21.45,base:"#c8ccd0", hi:"#f4f6f8", lo:"#7c8084", pat:"#9ea2a6", rough:.2,  grain:.4, spec:1,   cat:"Переходные"},
+  {sym:"Pd", name:"Палладий",  tm:1555, rho:12.02,base:"#c0c4c8", hi:"#eef0f4", lo:"#72767a", pat:"#94989c", rough:.25, grain:.45, spec:.95, cat:"Переходные"},
+  {sym:"Rh", name:"Родий",     tm:1964, rho:12.41,base:"#c4c8cc", hi:"#f2f4f8", lo:"#767a7e", pat:"#989ca0", rough:.22, grain:.45, spec:.95, cat:"Переходные"},
+  {sym:"Ru", name:"Рутений",   tm:2334, rho:12.37,base:"#b8bcc0", hi:"#e8ecf0", lo:"#6c7074", pat:"#8c9094", rough:.3,  grain:.55, spec:.85, cat:"Переходные"},
+  {sym:"Ag", name:"Серебро",   tm:962,  rho:10.49,base:"#e0e4e8", hi:"#ffffff", lo:"#9aa0a6", pat:"#7a7e82", rough:.18, grain:.4, spec:1,   cat:"Переходные"},
+  {sym:"Au", name:"Золото",    tm:1064, rho:19.30,base:"#e8c04a", hi:"#fff0a0", lo:"#9a7a1a", pat:"#b8902a", rough:.2,  grain:.4, spec:1,   cat:"Переходные"},
+  {sym:"Cd", name:"Кадмий",    tm:321,  rho:8.65, base:"#c4c8cc", hi:"#f0f4f8", lo:"#72767a", pat:"#92969a", rough:.4,  grain:.65, spec:.7,  cat:"Переходные"},
+  {sym:"Sc", name:"Скандий",   tm:1541, rho:2.99, base:"#c8d0d4", hi:"#f0f8fc", lo:"#7c8488", pat:"#9ca4a8", rough:.35, grain:.6, spec:.8,  cat:"Переходные"},
+  {sym:"Y",  name:"Иттрий",    tm:1526, rho:4.47, base:"#c4ccd0", hi:"#eef6fa", lo:"#787f84", pat:"#98a0a4", rough:.4,  grain:.65, spec:.75, cat:"Переходные"},
+
+  {sym:"Th", name:"Торий",     tm:1750, rho:11.72,base:"#b8c0c4", hi:"#e8f0f4", lo:"#6a7276", pat:"#8a9296", rough:.45, grain:.65, spec:.65, cat:"Редкие"},
+  {sym:"U",  name:"Уран",      tm:1132, rho:19.10,base:"#a8b0a8", hi:"#d8e0d8", lo:"#5a625a", pat:"#7a827a", rough:.4,  grain:.7, spec:.7,  cat:"Редкие"},
+  {sym:"Ce", name:"Церий",     tm:795,  rho:6.77, base:"#c8ccc0", hi:"#f0f4e8", lo:"#7c8074", pat:"#9ca094", rough:.5,  grain:.7, spec:.55, cat:"Редкие"},
+  {sym:"La", name:"Лантан",    tm:918,  rho:6.15, base:"#c4c8c0", hi:"#ecf0e8", lo:"#787c74", pat:"#989c94", rough:.5,  grain:.7, spec:.55, cat:"Редкие"},
+  {sym:"Nd", name:"Неодим",    tm:1024, rho:7.01, base:"#c0c4c0", hi:"#e8ece8", lo:"#747874", pat:"#949894", rough:.5,  grain:.7, spec:.55, cat:"Редкие"},
+  {sym:"Gd", name:"Гадолиний", tm:1312, rho:7.90, base:"#bcc0c0", hi:"#e4e8e8", lo:"#707474", pat:"#909494", rough:.5,  grain:.7, spec:.55, cat:"Редкие"},
+  {sym:"Sn", name:"Олово",     tm:232,  rho:7.31, base:"#c8ccd0", hi:"#f4f8fc", lo:"#767a7e", pat:"#969a9e", rough:.35, grain:.6, spec:.8,  cat:"Редкие"},
+  {sym:"Pb", name:"Свинец",    tm:327,  rho:11.34,base:"#9aa0a8", hi:"#d0d6de", lo:"#4e545c", pat:"#6e747c", rough:.5,  grain:.75, spec:.6, cat:"Редкие"},
+  {sym:"Bi", name:"Висмут",    tm:271,  rho:9.78, base:"#c0b8c8", hi:"#ece4f4", lo:"#746c7c", pat:"#948c9c", rough:.3,  grain:.5, spec:.85, cat:"Редкие"},
+  {sym:"Sb", name:"Сурьма",    tm:631,  rho:6.68, base:"#b8bcc0", hi:"#e8ecf0", lo:"#6c7074", pat:"#8c9094", rough:.45, grain:.7, spec:.65, cat:"Редкие"},
+  {sym:"Ga", name:"Галлий",    tm:30,   rho:5.91, base:"#c0c4c8", hi:"#ecf0f4", lo:"#74787c", pat:"#94989c", rough:.2,  grain:.4, spec:1,   cat:"Редкие"},
+  {sym:"In", name:"Индий",     tm:157,  rho:7.31, base:"#ccd0d4", hi:"#f4f8fc", lo:"#7a7e82", pat:"#9a9ea2", rough:.22, grain:.45, spec:.95, cat:"Редкие"},
+  {sym:"Tl", name:"Таллий",    tm:304,  rho:11.85,base:"#b8bcb8", hi:"#e4e8e4", lo:"#6c706c", pat:"#8c908c", rough:.4,  grain:.65, spec:.7,  cat:"Редкие"},
+  {sym:"Ge", name:"Германий",  tm:938,  rho:5.32, base:"#b0b8b8", hi:"#e0e8e8", lo:"#606868", pat:"#808888", rough:.3,  grain:.55, spec:.85, cat:"Редкие"},
+  {sym:"Hg", name:"Ртуть",     tm:-39,  rho:13.53,base:"#c0c4c8", hi:"#f0f4f8", lo:"#72767a", pat:"#92969a", rough:.05, grain:.1, spec:1,   cat:"Редкие"},
+  {sym:"Se", name:"Селен",     tm:221,  rho:4.81, base:"#c8b8b0", hi:"#f0e0d8", lo:"#7c6c64", pat:"#9c8c84", rough:.5,  grain:.7, spec:.55, cat:"Редкие"},
+];
+
+/* ============================================================
+   2. БАЗА ИЗВЕСТНЫХ СПЛАВОВ — 88 записей
+   Правила: основа = самый массовый элемент; каждый легирующий
+   должен попасть в [min,max] %; лишние элементы >3% запрещены.
+   ============================================================ */
+const ALLOYS = [
+  /* ================= БЛАГОРОДНЫЕ ТУГОПЛАВКИЕ (исходные) ================= */
+  {name:"Осмиридий",              base:"Os", rules:{Os:[30,90], Ir:[10,70]},                                   color:"#a0a8b0", cat:"Благородный тугоплавкий сплав"},
+  {name:"Осмий-платиновый",       base:"Os", rules:{Os:[40,80], Pt:[20,60]},                                   color:"#b0b8c0", cat:"Благородный тугоплавкий сплав"},
+  {name:"Иридий-платиновый",      base:"Ir", rules:{Ir:[40,90], Pt:[10,60]},                                   color:"#c0c8d0", cat:"Благородный тугоплавкий сплав"},
+  {name:"Иридий-осмиевый",        base:"Ir", rules:{Ir:[50,90], Os:[10,50]},                                   color:"#a8b0b8", cat:"Благородный тугоплавкий сплав"},
+  {name:"Осмий-рутениевый",       base:"Os", rules:{Os:[50,90], Ru:[10,50]},                                   color:"#a8b0b8", cat:"Благородный тугоплавкий сплав"},
+  {name:"Иридий-родиевый",        base:"Ir", rules:{Ir:[60,90], Rh:[10,40]},                                   color:"#c0c8d0", cat:"Благородный тугоплавкий сплав"},
+
+  /* ================= МЕДНЫЕ (исходные) ================= */
+  {name:"Латунь",                 base:"Cu", rules:{Cu:[50,95], Zn:[5,50]},                                    color:"#c9a04a", cat:"Медный сплав"},
+  {name:"Томпак",                 base:"Cu", rules:{Cu:[80,97], Zn:[3,20]},                                    color:"#d0904a", cat:"Медный сплав"},
+  {name:"Мунц-металл",            base:"Cu", rules:{Cu:[55,65], Zn:[35,45]},                                   color:"#c09040", cat:"Медный сплав"},
+  {name:"Адмиралтейская латунь",  base:"Cu", rules:{Cu:[70,75], Zn:[23,28], Sn:[0.5,2]},                      color:"#c8a050", cat:"Медный сплав"},
+  {name:"Морская латунь",         base:"Cu", rules:{Cu:[60,65], Zn:[30,38], Sn:[0.5,2]},                      color:"#c8a050", cat:"Медный сплав"},
+  {name:"Свинцовая латунь",       base:"Cu", rules:{Cu:[55,70], Zn:[25,40], Pb:[1,5]},                        color:"#c09848", cat:"Медный сплав"},
+  {name:"Алюминиевая латунь",     base:"Cu", rules:{Cu:[70,85], Zn:[10,25], Al:[1,7]},                        color:"#d0a850", cat:"Медный сплав"},
+  {name:"Кремнистая латунь",      base:"Cu", rules:{Cu:[70,85], Zn:[10,25], Si:[1,5]},                        color:"#c8a050", cat:"Медный сплав"},
+  {name:"Марганцовистая латунь",  base:"Cu", rules:{Cu:[55,70], Zn:[25,40], Mn:[1,5]},                        color:"#c09848", cat:"Медный сплав"},
+  {name:"Бронза",                 base:"Cu", rules:{Cu:[70,97], Sn:[3,30]},                                    color:"#b8743a", cat:"Медный сплав"},
+  {name:"Алюминиевая бронза",     base:"Cu", rules:{Cu:[70,95], Al:[5,15]},                                    color:"#c89850", cat:"Медный сплав"},
+  {name:"Кремнистая бронза",      base:"Cu", rules:{Cu:[90,98], Si:[1,5]},                                     color:"#c08848", cat:"Медный сплав"},
+  {name:"Бериллиевая бронза",     base:"Cu", rules:{Cu:[95,99], Be:[0.5,3]},                                   color:"#c8a060", cat:"Медный сплав"},
+  {name:"Марганцовистая бронза",  base:"Cu", rules:{Cu:[85,95], Mn:[5,15]},                                    color:"#b87840", cat:"Медный сплав"},
+  {name:"Мельхиор",               base:"Cu", rules:{Cu:[60,90], Ni:[10,40]},                                   color:"#b0b8c0", cat:"Медный сплав"},
+  {name:"Нейзильбер",             base:"Cu", rules:{Cu:[50,70], Zn:[15,30], Ni:[10,25]},                       color:"#c0c8c8", cat:"Медный сплав"},
+  {name:"Константан",             base:"Cu", rules:{Cu:[50,70], Ni:[40,50]},                                   color:"#b8b0a8", cat:"Сплав сопротивления"},
+  {name:"Манганин",               base:"Cu", rules:{Cu:[80,90], Mn:[10,15], Ni:[1,4]},                         color:"#b8a898", cat:"Прецизионный сплав"},
+  {name:"Куниаль",                base:"Cu", rules:{Cu:[85,95], Ni:[5,10], Al:[1,4]},                          color:"#c8a860", cat:"Медный сплав"},
+  {name:"Латунь ЛС59",            base:"Cu", rules:{Cu:[57,61], Zn:[37,41], Pb:[0.5,2]},                      color:"#c09848", cat:"Медный сплав"},
+
+  /* ================= ЖЕЛЕЗНЫЕ (исходные) ================= */
+  {name:"Сталь",                  base:"Fe", rules:{Fe:[70,99], C:[0.1,2.1]},                                  color:"#9098a0", cat:"Чёрный сплав", virtual:{C:1.0}},
+  {name:"Углеродистая сталь",     base:"Fe", rules:{Fe:[95,99.5], C:[0.1,2.1]},                                color:"#9098a0", cat:"Чёрный сплав", virtual:{C:1.0}},
+  {name:"Легированная сталь",     base:"Fe", rules:{Fe:[60,95], Cr:[1,20], Ni:[1,15]},                        color:"#a0a8b0", cat:"Чёрный сплав"},
+  {name:"Нержавеющая сталь",      base:"Fe", rules:{Fe:[50,80], Cr:[12,25], Ni:[5,20]},                        color:"#c0c8d0", cat:"Чёрный сплав"},
+  {name:"Ферритная нержавеющая",  base:"Fe", rules:{Fe:[75,90], Cr:[12,25], Ni:[0.1,4]},                       color:"#b8c0c8", cat:"Чёрный сплав"},
+  {name:"Мартенситная сталь",     base:"Fe", rules:{Fe:[80,95], Cr:[10,18], C:[0.1,1.5]},                      color:"#a8b0b8", cat:"Чёрный сплав", virtual:{C:0.5}},
+  {name:"Инструментальная сталь", base:"Fe", rules:{Fe:[80,95], Cr:[3,12], W:[1,10]},                          color:"#8a9098", cat:"Чёрный сплав"},
+  {name:"Быстрорежущая сталь",    base:"Fe", rules:{Fe:[60,80], W:[6,20], Cr:[3,6], V:[1,5]},                  color:"#8a9098", cat:"Чёрный сплав"},
+  {name:"Шарикоподшипниковая",    base:"Fe", rules:{Fe:[90,97], Cr:[1,3], C:[0.5,1.5]},                        color:"#a0a8b0", cat:"Чёрный сплав", virtual:{C:1.0}},
+  {name:"Кремнистая сталь",       base:"Fe", rules:{Fe:[93,97], Si:[3,5]},                                     color:"#a0a8b0", cat:"Электротехнический сплав"},
+  {name:"Чугун",                  base:"Fe", rules:{Fe:[85,99], C:[2.1,6]},                                    color:"#6a6e74", cat:"Чёрный сплав", virtual:{C:3.5}},
+  {name:"Серый чугун",            base:"Fe", rules:{Fe:[88,96], C:[2.5,4.5], Si:[1,3]},                        color:"#6a6e74", cat:"Чёрный сплав", virtual:{C:3.5}},
+  {name:"Высокопрочный чугун",    base:"Fe", rules:{Fe:[85,95], C:[3,4], Si:[1,3], Mg:[0.02,0.1]},             color:"#707478", cat:"Чёрный сплав", virtual:{C:3.5}},
+  {name:"Инвар",                  base:"Fe", rules:{Fe:[55,70], Ni:[30,45]},                                   color:"#b0b8c0", cat:"Прецизионный сплав"},
+  {name:"Суперинвар",             base:"Fe", rules:{Fe:[55,65], Ni:[30,40], Co:[3,8]},                         color:"#b0b8c0", cat:"Прецизионный сплав"},
+  {name:"Ковар",                  base:"Fe", rules:{Fe:[50,60], Ni:[25,35], Co:[15,25]},                       color:"#a8b0b8", cat:"Прецизионный сплав"},
+  {name:"Пермаллой",              base:"Fe", rules:{Fe:[40,60], Ni:[40,60]},                                   color:"#b8c0c8", cat:"Магнитный сплав"},
+  {name:"Супермаллой",            base:"Fe", rules:{Fe:[15,25], Ni:[70,80], Mo:[3,6]},                         color:"#b8c0c8", cat:"Магнитный сплав"},
+  {name:"Фехраль",                base:"Fe", rules:{Fe:[60,80], Cr:[15,30], Al:[3,8]},                         color:"#8a8e94", cat:"Сплав сопротивления"},
+  {name:"Хромаль",                base:"Fe", rules:{Fe:[55,70], Cr:[20,30], Al:[4,7]},                         color:"#8a8e94", cat:"Сплав сопротивления"},
+  {name:"Элинвар",                base:"Fe", rules:{Fe:[50,60], Ni:[35,45], Cr:[5,12]},                        color:"#a8b0b8", cat:"Прецизионный сплав"},
+
+  /* ================= НИКЕЛЕВЫЕ/КОБАЛЬТОВЫЕ (исходные) ================= */
+  {name:"Нихром",                 base:"Ni", rules:{Ni:[60,80], Cr:[15,30]},                                   color:"#a8b0b8", cat:"Сплав сопротивления"},
+  {name:"Хастеллой",              base:"Ni", rules:{Ni:[50,70], Mo:[10,30], Cr:[5,20]},                        color:"#b0b8c0", cat:"Жаропрочный сплав"},
+  {name:"Инконель",               base:"Ni", rules:{Ni:[50,75], Cr:[15,25], Fe:[5,20]},                        color:"#b8c0c8", cat:"Жаропрочный сплав"},
+  {name:"Инконель 718",           base:"Ni", rules:{Ni:[50,58], Cr:[17,21], Fe:[15,21], Nb:[4,6], Mo:[2,4]},   color:"#b8c0c8", cat:"Жаропрочный сплав"},
+  {name:"Нимоник",                base:"Ni", rules:{Ni:[50,70], Cr:[15,25], Co:[10,20], Ti:[1,5]},             color:"#c0c8d0", cat:"Жаропрочный сплав"},
+  {name:"Монель",                 base:"Ni", rules:{Ni:[60,75], Cu:[25,40]},                                   color:"#b0b8b0", cat:"Никелевый сплав"},
+  {name:"Хасталлой X",            base:"Ni", rules:{Ni:[45,55], Cr:[20,24], Mo:[8,10], Fe:[17,20], Co:[1,3]},  color:"#b0b8c0", cat:"Жаропрочный сплав"},
+  {name:"Нимонник 80A",           base:"Ni", rules:{Ni:[70,80], Cr:[18,22], Ti:[2,3], Al:[1,2]},              color:"#c0c8d0", cat:"Жаропрочный сплав"},
+  {name:"Стеллит",                base:"Co", rules:{Co:[50,65], Cr:[25,35], W:[4,15]},                         color:"#b0b8c0", cat:"Твёрдый сплав"},
+  {name:"Виталлий",               base:"Co", rules:{Co:[60,70], Cr:[25,30], Mo:[4,7]},                         color:"#b0b8c0", cat:"Твёрдый сплав"},
+
+  /* ================= АЛЮМИНИЕВЫЕ/МАГНИЕВЫЕ/ТИТАНОВЫЕ (исходные) ================= */
+  {name:"Дюралюминий",            base:"Al", rules:{Al:[85,97], Cu:[3,6], Mg:[0.5,3]},                         color:"#b8c4d0", cat:"Алюминиевый сплав"},
+  {name:"Силумин",                base:"Al", rules:{Al:[80,95], Si:[5,20]},                                    color:"#c0c8d0", cat:"Алюминиевый сплав"},
+  {name:"Магналий",               base:"Al", rules:{Al:[85,97], Mg:[3,15]},                                    color:"#c4ccd4", cat:"Алюминиевый сплав"},
+  {name:"Авиаль",                 base:"Al", rules:{Al:[90,98], Mg:[0.5,3], Si:[0.5,2], Cu:[0.1,1]},           color:"#c0c8d0", cat:"Алюминиевый сплав"},
+  {name:"Альклед",                base:"Al", rules:{Al:[95,99], Cu:[1,3], Mg:[0.5,2]},                         color:"#c8d0d8", cat:"Алюминиевый сплав"},
+  {name:"Алюминиево-литиевый",    base:"Al", rules:{Al:[90,97], Li:[1,4], Cu:[1,4]},                           color:"#c8d0d8", cat:"Алюминиевый сплав"},
+  {name:"Магний-литиевый",        base:"Mg", rules:{Mg:[70,90], Li:[10,30]},                                   color:"#d8dcc0", cat:"Ультралёгкий сплав"},
+  {name:"Электрон (Mg-Zn-Zr)",    base:"Mg", rules:{Mg:[85,95], Zn:[3,8], Zr:[0.5,2]},                        color:"#d0d4cc", cat:"Магниевый сплав"},
+  {name:"Магний-алюминиевый",     base:"Mg", rules:{Mg:[85,95], Al:[5,12], Zn:[0.5,3]},                       color:"#d0d4cc", cat:"Магниевый сплав"},
+  {name:"ВТ6 (Ti-6Al-4V)",        base:"Ti", rules:{Ti:[85,95], Al:[5,7], V:[3,5]},                            color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"ОТ4",                    base:"Ti", rules:{Ti:[90,98], Al:[2,5], Mn:[0.5,2]},                         color:"#b0b8c0", cat:"Титановый сплав"},
+  {name:"ВТ22",                   base:"Ti", rules:{Ti:[80,90], Al:[4,6], V:[4,6], Mo:[1,3], Cr:[1,3]},         color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"ПТ-7М",                  base:"Ti", rules:{Ti:[92,98], Al:[2,4], Zr:[1,3]},                           color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"Титановый сплав Ti-6242",base:"Ti", rules:{Ti:[80,90], Al:[5,7], Sn:[1,3], Zr:[3,6], Mo:[1,3]},       color:"#b8c0c8", cat:"Титановый сплав"},
+
+  /* ================= ТУГОПЛАВКИЕ/ТВЁРДЫЕ (исходные) ================= */
+  {name:"Победит (WC-Co)",        base:"W", rules:{W:[80,95], Co:[5,15]},                                      color:"#8a9098", cat:"Твёрдый сплав"},
+  {name:"ВК8 (WC-Co)",            base:"W", rules:{W:[85,92], Co:[6,10]},                                      color:"#8a9098", cat:"Твёрдый сплав"},
+  {name:"Молибден-титан",         base:"Mo", rules:{Mo:[70,95], Ti:[5,30]},                                    color:"#a0a8b0", cat:"Тугоплавкий сплав"},
+  {name:"ВНМ (W-Ni-Mo)",          base:"W", rules:{W:[85,95], Ni:[2,8], Mo:[1,5]},                             color:"#8a9098", cat:"Тугоплавкий сплав"},
+  {name:"Ниобий-титан",           base:"Nb", rules:{Nb:[60,80], Ti:[20,40]},                                   color:"#a8b0b8", cat:"Сверхпроводящий сплав"},
+  {name:"Ниобий-циркониевый",     base:"Nb", rules:{Nb:[90,99], Zr:[1,10]},                                    color:"#a8b0b8", cat:"Сверхпроводящий сплав"},
+  {name:"Тантал-вольфрамовый",    base:"Ta", rules:{Ta:[80,95], W:[5,20]},                                     color:"#a8b0b8", cat:"Тугоплавкий сплав"},
+
+  /* ================= БЛАГОРОДНЫЕ (исходные) ================= */
+  {name:"Электрум",               base:"Au", rules:{Au:[50,90], Ag:[10,50]},                                   color:"#e0c060", cat:"Драгоценный сплав"},
+  {name:"Красное золото",         base:"Au", rules:{Au:[70,90], Cu:[10,30]},                                   color:"#d8903a", cat:"Драгоценный сплав"},
+  {name:"Белое золото",           base:"Au", rules:{Au:[60,85], Ni:[10,25], Cu:[5,15]},                        color:"#e0e0e0", cat:"Драгоценный сплав"},
+  {name:"Жёлтое золото",          base:"Au", rules:{Au:[70,85], Ag:[8,18], Cu:[8,18]},                         color:"#e8c850", cat:"Драгоценный сплав"},
+  {name:"Розовое золото",         base:"Au", rules:{Au:[70,85], Cu:[15,25], Ag:[3,8]},                         color:"#e0a070", cat:"Драгоценный сплав"},
+  {name:"Платино-иридиевый",      base:"Pt", rules:{Pt:[70,95], Ir:[5,30]},                                    color:"#d0d4d8", cat:"Драгоценный сплав"},
+  {name:"Платино-родиевый",       base:"Pt", rules:{Pt:[85,95], Rh:[5,15]},                                    color:"#d0d4d8", cat:"Драгоценный сплав"},
+  {name:"Палладиево-серебряный",  base:"Pd", rules:{Pd:[50,80], Ag:[20,50]},                                   color:"#d0d4d8", cat:"Драгоценный сплав"},
+  {name:"Стерлинговое серебро",   base:"Ag", rules:{Ag:[90,95], Cu:[5,10]},                                    color:"#e0e4e8", cat:"Драгоценный сплав"},
+  {name:"Аргентан",               base:"Ag", rules:{Ag:[60,80], Cu:[15,25], Ni:[5,15]},                        color:"#d8dce0", cat:"Драгоценный сплав"},
+
+  /* ================= ЛЕГКОПЛАВКИЕ/ПРИПОИ/РЗМ (исходные) ================= */
+  {name:"Припой ПОС",             base:"Sn", rules:{Sn:[50,90], Pb:[10,50]},                                   color:"#c8ccd0", cat:"Припой"},
+  {name:"Припой ПОИн",            base:"Sn", rules:{Sn:[90,99], In:[1,10]},                                    color:"#c8ccd0", cat:"Припой"},
+  {name:"Бабит",                  base:"Sn", rules:{Sn:[70,90], Sb:[5,15], Cu:[3,10]},                         color:"#b8bcc0", cat:"Антифрикционный сплав"},
+  {name:"Сплав Вуда",             base:"Bi", rules:{Bi:[40,60], Pb:[20,30], Sn:[10,20], Cd:[5,15]},            color:"#c0b8c8", cat:"Легкоплавкий сплав"},
+  {name:"Сплав Розе",             base:"Bi", rules:{Bi:[40,55], Pb:[20,30], Sn:[10,20]},                       color:"#c0b8c8", cat:"Легкоплавкий сплав"},
+  {name:"Сплав Липовица",         base:"Bi", rules:{Bi:[45,55], Pb:[25,35], Sn:[10,20]},                       color:"#c0b8c8", cat:"Легкоплавкий сплав"},
+  {name:"Мишметалл",              base:"Ce", rules:{Ce:[40,60], La:[20,35], Nd:[10,25]},                       color:"#c0c4b8", cat:"РЗМ-сплав"},
+  {name:"Церий-лантановый",       base:"Ce", rules:{Ce:[50,70], La:[30,50]},                                   color:"#c0c4b8", cat:"РЗМ-сплав"},
+  {name:"Неодим-железо-бор",      base:"Nd", rules:{Nd:[25,35], Fe:[60,70], B:[0.5,2]},                        color:"#b8b4b0", cat:"Магнитный сплав"},
+  {name:"Самарий-кобальтовый",    base:"Co", rules:{Co:[50,65], Sm:[30,40]},                                   color:"#b0b8c0", cat:"Магнитный сплав"},
+  {name:"Галлиевый припой",       base:"Ga", rules:{Ga:[60,85], In:[10,25], Sn:[5,15]},                        color:"#c8ccd0", cat:"Припой"},
+  {name:"Индиевый припой",        base:"In", rules:{In:[50,80], Sn:[10,30], Pb:[10,25]},                       color:"#c8ccd0", cat:"Припой"},
+  {name:"Свинцово-сурьмяный",     base:"Pb", rules:{Pb:[85,97], Sb:[3,12]},                                    color:"#9aa0a8", cat:"Батарейный сплав"},
+  {name:"Свинцово-оловянный",     base:"Pb", rules:{Pb:[50,80], Sn:[20,50]},                                   color:"#a0a4a8", cat:"Антифрикционный сплав"},
+  {name:"Цинковый антикоррозионный", base:"Zn", rules:{Zn:[90,99], Al:[0.5,5], Cu:[0.1,1]},                   color:"#b0b8c0", cat:"Цинковый сплав"},
+
+  /* =====================================================================
+     ==================== 200 НОВЫХ СПЛАВОВ ==============================
+     ===================================================================== */
+
+  /* ---------- НЕРЖАВЕЮЩИЕ И КОРРОЗИОННОСТОЙКИЕ СТАЛИ (20) ---------- */
+  {name:"Сталь 304",              base:"Fe", rules:{Fe:[65,75], Cr:[18,20], Ni:[8,12]},                        color:"#c8d0d8", cat:"Нержавеющая сталь"},
+  {name:"Сталь 316",              base:"Fe", rules:{Fe:[60,70], Cr:[16,18], Ni:[10,14], Mo:[2,3]},             color:"#c8d0d8", cat:"Нержавеющая сталь"},
+  {name:"Сталь 321",              base:"Fe", rules:{Fe:[65,75], Cr:[17,19], Ni:[9,12], Ti:[0.3,1]},            color:"#c8d0d8", cat:"Нержавеющая сталь"},
+  {name:"Сталь 430",              base:"Fe", rules:{Fe:[80,85], Cr:[16,18]},                                   color:"#c0c8d0", cat:"Нержавеющая сталь"},
+  {name:"Сталь 410",              base:"Fe", rules:{Fe:[85,90], Cr:[11,13]},                                   color:"#c0c8d0", cat:"Нержавеющая сталь"},
+  {name:"Сталь 420",              base:"Fe", rules:{Fe:[83,88], Cr:[12,14], C:[0.2,0.5]},                      color:"#c0c8d0", cat:"Нержавеющая сталь", virtual:{C:0.35}},
+  {name:"Сталь 440C",             base:"Fe", rules:{Fe:[78,83], Cr:[16,18], C:[0.8,1.2]},                      color:"#b8c0c8", cat:"Нержавеющая сталь", virtual:{C:1.0}},
+  {name:"Дуплексная сталь",       base:"Fe", rules:{Fe:[60,70], Cr:[22,26], Ni:[4,7], Mo:[2,4]},               color:"#c8d0d8", cat:"Нержавеющая сталь"},
+  {name:"Супердуплекс",           base:"Fe", rules:{Fe:[55,65], Cr:[24,28], Ni:[6,9], Mo:[3,5]},               color:"#c8d0d8", cat:"Нержавеющая сталь"},
+  {name:"Сталь 17-4 PH",          base:"Fe", rules:{Fe:[70,78], Cr:[15,17], Ni:[3,5], Cu:[2,4]},               color:"#b8c0c8", cat:"Нержавеющая сталь"},
+  {name:"Сталь 15-5 PH",          base:"Fe", rules:{Fe:[72,78], Cr:[14,16], Ni:[3,5], Cu:[2,4]},               color:"#b8c0c8", cat:"Нержавеющая сталь"},
+  {name:"Сталь 20Х13",            base:"Fe", rules:{Fe:[85,88], Cr:[12,14], C:[0.15,0.25]},                    color:"#c0c8d0", cat:"Нержавеющая сталь", virtual:{C:0.2}},
+  {name:"Сталь 40Х",              base:"Fe", rules:{Fe:[95,98], Cr:[0.8,1.1], C:[0.35,0.45]},                  color:"#a8b0b8", cat:"Легированная сталь", virtual:{C:0.4}},
+  {name:"Сталь 40ХН",             base:"Fe", rules:{Fe:[94,97], Cr:[0.5,1], Ni:[1,2], C:[0.35,0.45]},          color:"#a8b0b8", cat:"Легированная сталь", virtual:{C:0.4}},
+  {name:"Сталь 30ХГСА",           base:"Fe", rules:{Fe:[93,96], Cr:[0.8,1.2], Mn:[0.8,1.2], Si:[0.8,1.2]},    color:"#a8b0b8", cat:"Легированная сталь"},
+  {name:"Сталь 18ХГТ",            base:"Fe", rules:{Fe:[94,97], Cr:[1,1.5], Mn:[0.8,1.2], Ti:[0.05,0.15]},     color:"#a8b0b8", cat:"Легированная сталь"},
+  {name:"Сталь 65Г",              base:"Fe", rules:{Fe:[96,98], Mn:[0.8,1.2], C:[0.6,0.7]},                    color:"#a0a8b0", cat:"Пружинная сталь", virtual:{C:0.65}},
+  {name:"Сталь 60С2",             base:"Fe", rules:{Fe:[95,97], Si:[1.5,2.2], C:[0.55,0.65]},                  color:"#a0a8b0", cat:"Пружинная сталь", virtual:{C:0.6}},
+  {name:"Сталь 12Х18Н10Т",        base:"Fe", rules:{Fe:[65,72], Cr:[17,19], Ni:[9,11], Ti:[0.3,0.8]},          color:"#c8d0d8", cat:"Нержавеющая сталь"},
+  {name:"Сталь 08Х18Н10",         base:"Fe", rules:{Fe:[68,75], Cr:[17,19], Ni:[9,11]},                        color:"#c8d0d8", cat:"Нержавеющая сталь"},
+
+  /* ---------- ИНСТРУМЕНТАЛЬНЫЕ И БЫСТРОРЕЖУЩИЕ СТАЛИ (15) ---------- */
+  {name:"Р6М5",                   base:"Fe", rules:{Fe:[75,82], W:[5,7], Mo:[4,6], Cr:[3,5], V:[1,3]},          color:"#8a9098", cat:"Быстрорежущая сталь"},
+  {name:"Р18",                    base:"Fe", rules:{Fe:[70,78], W:[17,19], Cr:[3,5], V:[1,3]},                  color:"#8a9098", cat:"Быстрорежущая сталь"},
+  {name:"Р9",                     base:"Fe", rules:{Fe:[75,82], W:[8,10], Cr:[3,5], V:[1,3]},                   color:"#8a9098", cat:"Быстрорежущая сталь"},
+  {name:"Р6М5К5",                 base:"Fe", rules:{Fe:[70,78], W:[5,7], Mo:[4,6], Co:[4,6], Cr:[3,5]},          color:"#8a9098", cat:"Быстрорежущая сталь"},
+  {name:"Х12МФ",                  base:"Fe", rules:{Fe:[82,88], Cr:[11,13], Mo:[0.5,1], V:[0.3,0.8]},           color:"#8a9098", cat:"Штамповая сталь"},
+  {name:"ХВГ",                    base:"Fe", rules:{Fe:[90,94], Cr:[0.8,1.2], W:[1,2], Mn:[0.8,1.2]},          color:"#9098a0", cat:"Штамповая сталь"},
+  {name:"У8",                     base:"Fe", rules:{Fe:[97,98.5], C:[0.7,0.9]},                                color:"#9098a0", cat:"Углеродистая сталь", virtual:{C:0.8}},
+  {name:"У10",                    base:"Fe", rules:{Fe:[97,98.5], C:[0.9,1.1]},                                color:"#9098a0", cat:"Углеродистая сталь", virtual:{C:1.0}},
+  {name:"У12",                    base:"Fe", rules:{Fe:[97,98.5], C:[1.1,1.3]},                                color:"#9098a0", cat:"Углеродистая сталь", virtual:{C:1.2}},
+  {name:"Сталь 9ХС",              base:"Fe", rules:{Fe:[93,96], Cr:[0.8,1.2], Si:[1,1.5]},                     color:"#9098a0", cat:"Инструментальная сталь"},
+  {name:"Сталь 5ХНМ",             base:"Fe", rules:{Fe:[93,96], Cr:[0.5,0.9], Ni:[1,2], Mo:[0.2,0.5]},         color:"#9098a0", cat:"Штамповая сталь"},
+  {name:"Сталь 4Х5МФС",           base:"Fe", rules:{Fe:[90,94], Cr:[4.5,5.5], Mo:[1,1.5], V:[0.3,0.6]},        color:"#8a9098", cat:"Штамповая сталь"},
+  {name:"Сталь 6ХВ2С",            base:"Fe", rules:{Fe:[91,94], Cr:[5,7], W:[2,3], Si:[1,1.5]},                 color:"#8a9098", cat:"Штамповая сталь"},
+  {name:"Сталь 8Х4В2МФС2",        base:"Fe", rules:{Fe:[85,90], Cr:[3,5], W:[1,3], Mo:[0.5,1], V:[0.3,0.8]},    color:"#8a9098", cat:"Штамповая сталь"},
+  {name:"Сталь 110Г13Л (Гадфильда)", base:"Fe", rules:{Fe:[85,90], Mn:[12,14], C:[0.9,1.4]},                  color:"#8a9098", cat:"Износостойкая сталь", virtual:{C:1.1}},
+
+  /* ---------- ЖАРОПРОЧНЫЕ И СПЕЦИАЛЬНЫЕ СТАЛИ (10) ---------- */
+  {name:"Сталь 15Х11МФ",          base:"Fe", rules:{Fe:[85,90], Cr:[10,12], Mo:[0.5,1], V:[0.1,0.3]},          color:"#a8b0b8", cat:"Жаропрочная сталь"},
+  {name:"Сталь 20Х23Н18",         base:"Fe", rules:{Fe:[50,58], Cr:[22,25], Ni:[17,20]},                       color:"#c8d0d8", cat:"Жаростойкая сталь"},
+  {name:"Сталь 40Х10С2М",         base:"Fe", rules:{Fe:[85,90], Cr:[9,11], Si:[1.5,2.5], Mo:[0.5,1]},          color:"#a8b0b8", cat:"Жаростойкая сталь"},
+  {name:"Сталь 15Х5М",            base:"Fe", rules:{Fe:[92,95], Cr:[4,6], Mo:[0.4,0.6]},                       color:"#a8b0b8", cat:"Жаростойкая сталь"},
+  {name:"Сталь 12Х1МФ",           base:"Fe", rules:{Fe:[96,98], Cr:[0.8,1.2], Mo:[0.3,0.6], V:[0.1,0.3]},      color:"#a8b0b8", cat:"Теплоустойчивая сталь"},
+  {name:"Сталь 25Х2М1Ф",          base:"Fe", rules:{Fe:[94,96], Cr:[1.5,2.5], Mo:[0.8,1.2], V:[0.1,0.3]},      color:"#a8b0b8", cat:"Теплоустойчивая сталь"},
+  {name:"Сталь 18Х12ВМБФР",       base:"Fe", rules:{Fe:[80,85], Cr:[11,13], W:[0.5,1], Mo:[0.5,1]},            color:"#a8b0b8", cat:"Жаропрочная сталь"},
+  {name:"Сталь ЭП-766",           base:"Fe", rules:{Fe:[72,78], Ni:[25,28], Ti:[1.5,2], Al:[0.5,1]},           color:"#b8c0c8", cat:"Жаропрочная сталь"},
+  {name:"Сталь ЭИ-437Б",          base:"Fe", rules:{Fe:[70,76], Ni:[18,22], Cr:[12,15], Ti:[2,3]},             color:"#b8c0c8", cat:"Жаропрочная сталь"},
+  {name:"Сталь ЭП-202",           base:"Fe", rules:{Fe:[68,75], Cr:[14,17], Ni:[14,17], W:[2,4], Ti:[1,2]},    color:"#b8c0c8", cat:"Жаропрочная сталь"},
+
+  /* ---------- ЧУГУНЫ (10) ---------- */
+  {name:"Ковкий чугун",           base:"Fe", rules:{Fe:[92,96], C:[2.4,3.2], Si:[0.8,1.6]},                    color:"#6e747a", cat:"Чугун", virtual:{C:2.8}},
+  {name:"Легированный чугун",     base:"Fe", rules:{Fe:[85,92], C:[2.5,4], Cr:[1,5]},                         color:"#6a6e74", cat:"Чугун", virtual:{C:3.2}},
+  {name:"Высокохромистый чугун",  base:"Fe", rules:{Fe:[70,80], Cr:[12,25], C:[2,4]},                         color:"#6a6e74", cat:"Чугун", virtual:{C:3.0}},
+  {name:"Никелевый чугун",        base:"Fe", rules:{Fe:[85,92], Ni:[3,8], C:[2.5,4]},                         color:"#707478", cat:"Чугун", virtual:{C:3.2}},
+  {name:"Антифрикционный чугун",  base:"Fe", rules:{Fe:[85,92], Cu:[1,3], Cr:[0.5,2], C:[2.5,4]},              color:"#707478", cat:"Чугун", virtual:{C:3.2}},
+  {name:"Серый чугун СЧ20",       base:"Fe", rules:{Fe:[90,95], C:[3.2,3.6], Si:[1.8,2.4]},                    color:"#6a6e74", cat:"Чугун", virtual:{C:3.4}},
+  {name:"Высокопрочный ВЧ50",     base:"Fe", rules:{Fe:[90,94], C:[3.2,3.8], Si:[2.2,2.8], Mg:[0.03,0.08]},    color:"#707478", cat:"Чугун", virtual:{C:3.5}},
+  {name:"Чугун ЧХ16",             base:"Fe", rules:{Fe:[78,85], Cr:[14,18], C:[2,3]},                         color:"#6a6e74", cat:"Чугун", virtual:{C:2.6}},
+  {name:"Чугун ЧН20Д2",           base:"Fe", rules:{Fe:[68,75], Ni:[18,22], Cu:[1,3], C:[2.5,3.5]},             color:"#707478", cat:"Чугун", virtual:{C:3.0}},
+  {name:"Чугун ЧГ6С3",            base:"Fe", rules:{Fe:[88,92], Mn:[5,7], Si:[2.5,3.5], C:[3,3.6]},             color:"#6a6e74", cat:"Чугун", virtual:{C:3.3}},
+
+  /* ---------- МЕДНЫЕ СПЛАВЫ — ЛАТУНИ (25) ---------- */
+  {name:"Латунь Л60",             base:"Cu", rules:{Cu:[58,62], Zn:[38,42]},                                   color:"#c8a048", cat:"Латунь"},
+  {name:"Латунь Л63",             base:"Cu", rules:{Cu:[61,64], Zn:[36,39]},                                   color:"#c8a048", cat:"Латунь"},
+  {name:"Латунь Л68",             base:"Cu", rules:{Cu:[66,70], Zn:[30,34]},                                   color:"#d0a850", cat:"Латунь"},
+  {name:"Латунь Л70",             base:"Cu", rules:{Cu:[68,72], Zn:[28,32]},                                   color:"#d0a850", cat:"Латунь"},
+  {name:"Латунь Л80",             base:"Cu", rules:{Cu:[78,82], Zn:[18,22]},                                   color:"#d4ac50", cat:"Латунь"},
+  {name:"Латунь Л85",             base:"Cu", rules:{Cu:[83,87], Zn:[13,17]},                                   color:"#d4ac50", cat:"Латунь"},
+  {name:"Латунь Л90",             base:"Cu", rules:{Cu:[88,92], Zn:[8,12]},                                    color:"#d4ac50", cat:"Латунь"},
+  {name:"Латунь Л96",             base:"Cu", rules:{Cu:[94,97], Zn:[3,6]},                                     color:"#d8b050", cat:"Латунь"},
+  {name:"Латунь ЛАН59-3-2",       base:"Cu", rules:{Cu:[57,61], Al:[2,4], Ni:[1.5,3], Zn:[32,38]},             color:"#cca850", cat:"Латунь"},
+  {name:"Латунь ЛАМш77-2-0.05",   base:"Cu", rules:{Cu:[75,80], Al:[1.5,3], As:[0.02,0.08], Zn:[18,22]},       color:"#d0a850", cat:"Латунь"},
+  {name:"Латунь ЛО60-1",          base:"Cu", rules:{Cu:[58,62], Sn:[0.5,1.5], Zn:[36,40]},                     color:"#c8a048", cat:"Латунь"},
+  {name:"Латунь ЛО62-1",          base:"Cu", rules:{Cu:[60,64], Sn:[0.5,1.5], Zn:[34,38]},                     color:"#c8a048", cat:"Латунь"},
+  {name:"Латунь ЛО70-1",          base:"Cu", rules:{Cu:[68,72], Sn:[0.8,1.5], Zn:[26,30]},                     color:"#d0a850", cat:"Латунь"},
+  {name:"Латунь ЛС60-1",          base:"Cu", rules:{Cu:[58,62], Pb:[0.5,1.5], Zn:[36,40]},                     color:"#c8a048", cat:"Латунь"},
+  {name:"Латунь ЛС63-3",          base:"Cu", rules:{Cu:[61,64], Pb:[2,4], Zn:[31,36]},                         color:"#c8a048", cat:"Латунь"},
+  {name:"Латунь ЛЖМц59-1-1",      base:"Cu", rules:{Cu:[57,61], Fe:[0.5,1.5], Mn:[0.5,1.5], Zn:[36,40]},       color:"#c8a048", cat:"Латунь"},
+  {name:"Латунь ЛЖС58-1-1",       base:"Cu", rules:{Cu:[56,60], Fe:[0.5,1.5], Pb:[0.5,1.5], Zn:[37,41]},       color:"#c8a048", cat:"Латунь"},
+  {name:"Латунь ЛМцА57-3-1",      base:"Cu", rules:{Cu:[55,59], Mn:[2,4], Al:[0.5,1.5], Zn:[35,40]},            color:"#c8a048", cat:"Латунь"},
+  {name:"Латунь ЛМцЖ55-3-1",      base:"Cu", rules:{Cu:[53,57], Mn:[2.5,4], Fe:[0.5,1.5], Zn:[37,42]},          color:"#c09848", cat:"Латунь"},
+  {name:"Латунь ЛМш68-0.05",      base:"Cu", rules:{Cu:[66,70], As:[0.02,0.08], Zn:[29,33]},                   color:"#d0a850", cat:"Латунь"},
+  {name:"Латунь ЛН65-5",          base:"Cu", rules:{Cu:[63,67], Ni:[4,6], Zn:[28,32]},                         color:"#c8b8a8", cat:"Латунь"},
+  {name:"Латунь ЛАНКМц75-2-2.5-0.5-0.5", base:"Cu", rules:{Cu:[73,77], Al:[1.5,3], Ni:[2,3], Mn:[0.3,0.8], Zn:[18,23]}, color:"#ccb070", cat:"Латунь"},
+  {name:"Латунь ЛК80-3",          base:"Cu", rules:{Cu:[78,82], Si:[2,4], Zn:[16,20]},                         color:"#c8a050", cat:"Латунь"},
+  {name:"Латунь ЛКС65-1.5-3",     base:"Cu", rules:{Cu:[63,67], Si:[1,2], Pb:[2,4], Zn:[28,33]},                color:"#c8a050", cat:"Латунь"},
+  {name:"Латунь ЛАЖ60-1-1",       base:"Cu", rules:{Cu:[58,62], Al:[0.5,1.5], Fe:[0.5,1.5], Zn:[36,40]},       color:"#cca850", cat:"Латунь"},
+
+  /* ---------- МЕДНЫЕ СПЛАВЫ — БРОНЗЫ (20) ---------- */
+  {name:"БрОФ6.5-0.15",           base:"Cu", rules:{Cu:[91,94], Sn:[6,7], P:[0.1,0.3]},                        color:"#b8743a", cat:"Оловянная бронза"},
+  {name:"БрОЦС5-5-5",             base:"Cu", rules:{Cu:[84,88], Sn:[4,6], Zn:[4,6], Pb:[4,6]},                  color:"#b87840", cat:"Оловянная бронза"},
+  {name:"БрОЦС4-4-4",             base:"Cu", rules:{Cu:[86,90], Sn:[3,5], Zn:[3,5], Pb:[3,5]},                  color:"#b87840", cat:"Оловянная бронза"},
+  {name:"БрОЦС4-4-2.5",           base:"Cu", rules:{Cu:[88,91], Sn:[3,5], Zn:[3,5], Pb:[2,3]},                  color:"#b87840", cat:"Оловянная бронза"},
+  {name:"БрО10Ф1",                base:"Cu", rules:{Cu:[88,91], Sn:[9,11], P:[0.5,1.5]},                       color:"#b07038", cat:"Оловянная бронза"},
+  {name:"БрО10Ц2",                base:"Cu", rules:{Cu:[87,90], Sn:[9,11], Zn:[1,3]},                          color:"#b07038", cat:"Оловянная бронза"},
+  {name:"БрА5",                   base:"Cu", rules:{Cu:[94,96], Al:[4,6]},                                     color:"#c89850", cat:"Алюминиевая бронза"},
+  {name:"БрА7",                   base:"Cu", rules:{Cu:[92,94], Al:[6,8]},                                     color:"#c89850", cat:"Алюминиевая бронза"},
+  {name:"БрА9Мц2Л",               base:"Cu", rules:{Cu:[87,91], Al:[8,10], Mn:[1.5,2.5]},                      color:"#c89850", cat:"Алюминиевая бронза"},
+  {name:"БрА10Ж4Н4",              base:"Cu", rules:{Cu:[80,85], Al:[9,11], Fe:[3,5], Ni:[3,5]},                 color:"#c09048", cat:"Алюминиевая бронза"},
+  {name:"БрА11Ж6Н6",              base:"Cu", rules:{Cu:[75,80], Al:[10,12], Fe:[5,7], Ni:[5,7]},                 color:"#c09048", cat:"Алюминиевая бронза"},
+  {name:"БрАЖ9-4",                base:"Cu", rules:{Cu:[85,89], Al:[8,10], Fe:[3,5]},                          color:"#c09048", cat:"Алюминиевая бронза"},
+  {name:"БрАЖН10-4-4",            base:"Cu", rules:{Cu:[80,84], Al:[9,11], Fe:[3,5], Ni:[3,5]},                 color:"#c09048", cat:"Алюминиевая бронза"},
+  {name:"БрБ2",                   base:"Cu", rules:{Cu:[97,98.5], Be:[1.8,2.2]},                               color:"#c8a060", cat:"Бериллиевая бронза"},
+  {name:"БрБНТ1.9",               base:"Cu", rules:{Cu:[96,98], Be:[1.6,2.2], Ni:[0.2,0.5], Ti:[0.1,0.3]},     color:"#c8a060", cat:"Бериллиевая бронза"},
+  {name:"БрКМц3-1",               base:"Cu", rules:{Cu:[94,97], Si:[2.5,3.5], Mn:[0.8,1.5]},                    color:"#c08848", cat:"Кремнистая бронза"},
+  {name:"БрКН1-3",                base:"Cu", rules:{Cu:[94,97], Si:[0.5,1.5], Ni:[2,4]},                        color:"#c08848", cat:"Кремнистая бронза"},
+  {name:"БрМц5",                  base:"Cu", rules:{Cu:[94,96], Mn:[4,6]},                                     color:"#b87840", cat:"Марганцовистая бронза"},
+  {name:"БрХ0.8",                 base:"Cu", rules:{Cu:[98,99.5], Cr:[0.6,1]},                                 color:"#c08840", cat:"Хромовая бронза"},
+  {name:"БрХ1",                   base:"Cu", rules:{Cu:[98,99.2], Cr:[0.8,1.2]},                               color:"#c08840", cat:"Хромовая бронза"},
+  {name:"БрНХК2.5-0.8-0.6",       base:"Cu", rules:{Cu:[95,97], Ni:[2,3], Cr:[0.5,1], Si:[0.4,0.8]},            color:"#c0a080", cat:"Специальная бронза"},
+  {name:"БрНБТ0.9-0.5",           base:"Cu", rules:{Cu:[97,99], Ni:[0.5,1], Be:[0.3,0.7], Ti:[0.1,0.3]},        color:"#c0a080", cat:"Специальная бронза"},
+
+  /* ---------- СПЕЦИАЛЬНЫЕ МЕДНЫЕ СПЛАВЫ (5) ---------- */
+  {name:"ХМ-сплав",               base:"Cu", rules:{Cu:[97,99], Cr:[0.5,1.2], Zr:[0.05,0.2]},                  color:"#c08840", cat:"Медный сплав"},
+  {name:"Кадмиевая медь",         base:"Cu", rules:{Cu:[98,99.5], Cd:[0.5,1.5]},                              color:"#c07838", cat:"Медный сплав"},
+  {name:"Хромистая медь",         base:"Cu", rules:{Cu:[98,99.3], Cr:[0.5,1.2]},                               color:"#c08840", cat:"Медный сплав"},
+  {name:"Серебряная медь",        base:"Cu", rules:{Cu:[98,99.5], Ag:[0.05,0.3]},                              color:"#c07838", cat:"Медный сплав"},
+  {name:"Медь с мышьяком",        base:"Cu", rules:{Cu:[99,99.9], As:[0.02,0.1]},                              color:"#c07838", cat:"Медный сплав"},
+
+  /* ---------- НИКЕЛЕВЫЕ ЖАРОПРОЧНЫЕ (15) ---------- */
+  {name:"ЖС6У",                   base:"Ni", rules:{Ni:[55,65], Cr:[8,12], Co:[8,12], W:[4,6], Mo:[1,3], Al:[5,7], Ti:[2,4]}, color:"#c0c8d0", cat:"Жаропрочный сплав"},
+  {name:"ЖС6К",                   base:"Ni", rules:{Ni:[55,65], Cr:[8,12], Co:[8,12], W:[4,6], Mo:[1,3], Al:[5,7], Ti:[2,4]}, color:"#c0c8d0", cat:"Жаропрочный сплав"},
+  {name:"ЖС32",                   base:"Ni", rules:{Ni:[50,60], Cr:[4,8], Co:[8,12], W:[7,10], Mo:[1,3], Al:[5,7], Ti:[1,3], Ta:[3,6]}, color:"#c0c8d0", cat:"Жаропрочный сплав"},
+  {name:"ЖС26",                   base:"Ni", rules:{Ni:[55,65], Cr:[4,8], Co:[8,12], W:[10,13], Al:[5,7], Ti:[1,3]}, color:"#c0c8d0", cat:"Жаропрочный сплав"},
+  {name:"ВЖЛ12У",                 base:"Ni", rules:{Ni:[55,65], Cr:[10,14], Co:[4,8], Mo:[3,5], Al:[3,5], Ti:[2,4]}, color:"#c0c8d0", cat:"Жаропрочный сплав"},
+  {name:"ЦНК-7",                  base:"Ni", rules:{Ni:[70,80], Cr:[18,22], Ti:[2,3], Al:[1,2]},               color:"#c8d0d8", cat:"Жаропрочный сплав"},
+  {name:"ЭП-109",                 base:"Ni", rules:{Ni:[60,70], Cr:[10,15], W:[4,6], Mo:[3,5], Al:[3,5], Ti:[2,4]}, color:"#c0c8d0", cat:"Жаропрочный сплав"},
+  {name:"ЭИ-698",                 base:"Ni", rules:{Ni:[70,78], Cr:[13,16], Ti:[2,3], Mo:[2,4]},               color:"#c8d0d8", cat:"Жаропрочный сплав"},
+  {name:"ХН77ТЮР",                base:"Ni", rules:{Ni:[70,78], Cr:[19,22], Ti:[2.5,3], Al:[0.5,1.5]},          color:"#c8d0d8", cat:"Жаропрочный сплав"},
+  {name:"ХН70Ю",                  base:"Ni", rules:{Ni:[70,80], Cr:[27,29], Al:[2.5,3.5]},                     color:"#c8d0d8", cat:"Жаропрочный сплав"},
+  {name:"Инконель 625",           base:"Ni", rules:{Ni:[58,68], Cr:[20,23], Mo:[8,10], Nb:[3,5]},               color:"#c0c8d0", cat:"Жаропрочный сплав"},
+  {name:"Инконель 600",           base:"Ni", rules:{Ni:[72,78], Cr:[14,17], Fe:[6,10]},                        color:"#c0c8d0", cat:"Жаропрочный сплав"},
+  {name:"Инконель 690",           base:"Ni", rules:{Ni:[58,65], Cr:[27,31], Fe:[7,11]},                        color:"#c0c8d0", cat:"Жаропрочный сплав"},
+  {name:"Хастеллой C-276",        base:"Ni", rules:{Ni:[50,60], Mo:[15,17], Cr:[14,16], Fe:[4,7], W:[3,4]},     color:"#b8c0c8", cat:"Жаропрочный сплав"},
+  {name:"Хастеллой C-22",         base:"Ni", rules:{Ni:[50,60], Mo:[12,15], Cr:[20,23], Fe:[2,6], W:[2,4]},     color:"#b8c0c8", cat:"Жаропрочный сплав"},
+
+  /* ---------- НИКЕЛЕВЫЕ СПЕЦИАЛЬНЫЕ (10) ---------- */
+  {name:"Никель 200",             base:"Ni", rules:{Ni:[99,99.9], C:[0.01,0.15]},                             color:"#b4bcc4", cat:"Никелевый сплав", virtual:{C:0.08}},
+  {name:"Никель 201",             base:"Ni", rules:{Ni:[99,99.9], C:[0.01,0.15]},                             color:"#b4bcc4", cat:"Никелевый сплав", virtual:{C:0.08}},
+  {name:"Монель 400",             base:"Ni", rules:{Ni:[63,70], Cu:[28,34], Fe:[1,3]},                         color:"#b0b8b0", cat:"Никелевый сплав"},
+  {name:"Монель K500",            base:"Ni", rules:{Ni:[63,70], Cu:[27,33], Al:[2,4], Ti:[0.3,1]},              color:"#b0b8b0", cat:"Никелевый сплав"},
+  {name:"Хастеллой B",            base:"Ni", rules:{Ni:[60,70], Mo:[25,30], Fe:[4,7]},                         color:"#b8b8c0", cat:"Никелевый сплав"},
+  {name:"Хастеллой B-2",          base:"Ni", rules:{Ni:[65,72], Mo:[26,30], Fe:[1,3]},                         color:"#b8b8c0", cat:"Никелевый сплав"},
+  {name:"Хастеллой N",            base:"Ni", rules:{Ni:[65,75], Mo:[15,18], Cr:[6,8], Fe:[3,6]},                color:"#b8c0c8", cat:"Никелевый сплав"},
+  {name:"Хастеллой S",            base:"Ni", rules:{Ni:[55,65], Mo:[14,17], Cr:[14,17], Fe:[2,5]},              color:"#b8c0c8", cat:"Никелевый сплав"},
+  {name:"Нимонник 90",            base:"Ni", rules:{Ni:[50,60], Cr:[18,21], Co:[15,21], Ti:[2,3], Al:[1,2]},    color:"#c8d0d8", cat:"Никелевый сплав"},
+  {name:"Нимонник 105",           base:"Ni", rules:{Ni:[48,58], Cr:[18,21], Co:[18,22], Ti:[1,2], Al:[4,5]},    color:"#c8d0d8", cat:"Никелевый сплав"},
+
+  /* ---------- КОБАЛЬТОВЫЕ (10) ---------- */
+  {name:"Кобальт-хром-молибден",  base:"Co", rules:{Co:[60,70], Cr:[26,30], Mo:[5,7]},                         color:"#b8bcc0", cat:"Кобальтовый сплав"},
+  {name:"Стеллит 6",              base:"Co", rules:{Co:[55,65], Cr:[27,32], W:[4,6], C:[0.8,1.5]},              color:"#b0b8c0", cat:"Твёрдый сплав", virtual:{C:1.1}},
+  {name:"Стеллит 12",             base:"Co", rules:{Co:[50,60], Cr:[28,32], W:[8,10], C:[1.5,2.5]},             color:"#b0b8c0", cat:"Твёрдый сплав", virtual:{C:2.0}},
+  {name:"Стеллит 21",             base:"Co", rules:{Co:[50,60], Cr:[25,30], W:[14,17], C:[1.5,2.5]},            color:"#b0b8c0", cat:"Твёрдый сплав", virtual:{C:2.0}},
+  {name:"Виталлий",               base:"Co", rules:{Co:[60,70], Cr:[25,30], Mo:[4,7]},                         color:"#b0b8c0", cat:"Кобальтовый сплав"},
+  {name:"Кобальтовый сплав HS-188", base:"Co", rules:{Co:[35,45], Cr:[20,24], Ni:[20,24], W:[13,15]},           color:"#b8c0c8", cat:"Кобальтовый сплав"},
+  {name:"Кобальтовый сплав L-605", base:"Co", rules:{Co:[45,55], Cr:[19,21], Ni:[9,11], W:[14,16]},             color:"#b8c0c8", cat:"Кобальтовый сплав"},
+  {name:"Кобальтовый сплав MP35N", base:"Co", rules:{Co:[30,40], Ni:[33,37], Cr:[19,21], Mo:[9,10.5]},          color:"#b8c0c8", cat:"Кобальтовый сплав"},
+  {name:"Кобальтовый сплав ЭИ-617", base:"Co", rules:{Co:[40,50], Cr:[14,17], Ni:[12,15], W:[9,11], Mo:[5,7]},  color:"#b8c0c8", cat:"Кобальтовый сплав"},
+  {name:"Самарий-кобальтовый 2:17", base:"Co", rules:{Co:[48,55], Sm:[22,28], Fe:[15,20], Cu:[4,6], Zr:[1,2]},  color:"#b0b8c0", cat:"Магнитный сплав"},
+
+  /* ---------- ТИТАНОВЫЕ (20) ---------- */
+  {name:"ВТ1-0",                  base:"Ti", rules:{Ti:[99,99.7], Fe:[0.1,0.3], O:[0.05,0.2]},                 color:"#b6bcc2", cat:"Титановый сплав", virtual:{Fe:0.2, O:0.1}},
+  {name:"ВТ1-00",                 base:"Ti", rules:{Ti:[99.2,99.8], Fe:[0.05,0.2], O:[0.03,0.1]},               color:"#b6bcc2", cat:"Титановый сплав", virtual:{Fe:0.1, O:0.05}},
+  {name:"ОТ4-0",                  base:"Ti", rules:{Ti:[95,98], Al:[1,3], Mn:[0.3,1]},                         color:"#b0b8c0", cat:"Титановый сплав"},
+  {name:"ОТ4-1",                  base:"Ti", rules:{Ti:[94,97], Al:[2,4], Mn:[0.5,1.5]},                       color:"#b0b8c0", cat:"Титановый сплав"},
+  {name:"ВТ5",                    base:"Ti", rules:{Ti:[92,96], Al:[4,6]},                                     color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"ВТ5-1",                  base:"Ti", rules:{Ti:[90,94], Al:[4,6], Sn:[1,3]},                           color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"ВТ6С",                   base:"Ti", rules:{Ti:[86,92], Al:[5,7], V:[3,5]},                            color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"ВТ14",                   base:"Ti", rules:{Ti:[84,90], Al:[4,6], V:[0.8,2.5], Mo:[2,4]},               color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"ВТ16",                   base:"Ti", rules:{Ti:[82,88], Al:[2,4], Mo:[4,6], V:[4,6]},                   color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"ВТ20",                   base:"Ti", rules:{Ti:[86,92], Al:[5,7], V:[1,3], Mo:[1,3], Zr:[1,3]},          color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"ВТ23",                   base:"Ti", rules:{Ti:[80,86], Al:[4,6], V:[4,6], Mo:[1,3], Cr:[1,3], Fe:[1,2]}, color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"ВТ25",                   base:"Ti", rules:{Ti:[82,88], Al:[5,7], Mo:[4,6], V:[3,5]},                   color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"ВТ9",                    base:"Ti", rules:{Ti:[85,91], Al:[5,7], Mo:[2,4], Zr:[1,3]},                  color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"ВТ18У",                  base:"Ti", rules:{Ti:[78,84], Al:[5,7], Mo:[7,9], V:[1,3], Zr:[2,4]},          color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"ВТ3-1",                  base:"Ti", rules:{Ti:[84,90], Al:[5,7], Cr:[1,3], Mo:[1,3], Fe:[0.5,2]},       color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"ПТ-3В",                  base:"Ti", rules:{Ti:[94,98], Al:[3,5], V:[1,2]},                            color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"ПТ-1М",                  base:"Ti", rules:{Ti:[98,99.5], Fe:[0.1,0.3]},                               color:"#b6bcc2", cat:"Титановый сплав", virtual:{Fe:0.2}},
+  {name:"Ti-5Al-2.5Sn",           base:"Ti", rules:{Ti:[90,95], Al:[4,6], Sn:[2,3]},                           color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"Ti-8Al-1Mo-1V",          base:"Ti", rules:{Ti:[87,92], Al:[7,9], Mo:[0.5,1.5], V:[0.5,1.5]},          color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"Ti-10V-2Fe-3Al",         base:"Ti", rules:{Ti:[82,88], V:[9,11], Fe:[1,3], Al:[2,4]},                 color:"#b8c0c8", cat:"Титановый сплав"},
+  {name:"Ti-15V-3Cr-3Sn-3Al",     base:"Ti", rules:{Ti:[75,82], V:[14,16], Cr:[2,4], Sn:[2,4], Al:[2,4]},      color:"#b8c0c8", cat:"Титановый сплав"},
+
+  /* ---------- АЛЮМИНИЕВЫЕ (25) ---------- */
+  {name:"АМг1",                   base:"Al", rules:{Al:[95,98], Mg:[0.8,1.5]},                                 color:"#c4ccd4", cat:"Алюминиевый сплав"},
+  {name:"АМг2",                   base:"Al", rules:{Al:[94,97], Mg:[1.8,2.8]},                                  color:"#c4ccd4", cat:"Алюминиевый сплав"},
+  {name:"АМг3",                   base:"Al", rules:{Al:[93,96], Mg:[3,4]},                                     color:"#c4ccd4", cat:"Алюминиевый сплав"},
+  {name:"АМг5",                   base:"Al", rules:{Al:[91,95], Mg:[4.5,5.5]},                                 color:"#c4ccd4", cat:"Алюминиевый сплав"},
+  {name:"АМг6",                   base:"Al", rules:{Al:[90,94], Mg:[5.5,6.5]},                                 color:"#c4ccd4", cat:"Алюминиевый сплав"},
+  {name:"АМг6М",                  base:"Al", rules:{Al:[90,94], Mg:[5.5,6.5], Mn:[0.5,1]},                     color:"#c4ccd4", cat:"Алюминиевый сплав"},
+  {name:"АМц",                    base:"Al", rules:{Al:[96,99], Mn:[1,2]},                                     color:"#c8d0d8", cat:"Алюминиевый сплав"},
+  {name:"АМцС",                   base:"Al", rules:{Al:[96,99], Mn:[1,2]},                                     color:"#c8d0d8", cat:"Алюминиевый сплав"},
+  {name:"Д1",                     base:"Al", rules:{Al:[90,95], Cu:[3.5,5], Mg:[0.4,1.2], Mn:[0.4,1]},          color:"#b8c4d0", cat:"Дюралюминий"},
+  {name:"Д16",                    base:"Al", rules:{Al:[90,95], Cu:[3.8,4.9], Mg:[1.2,1.8], Mn:[0.3,0.9]},      color:"#b8c4d0", cat:"Дюралюминий"},
+  {name:"Д16Т",                   base:"Al", rules:{Al:[90,95], Cu:[3.8,4.9], Mg:[1.2,1.8], Mn:[0.3,0.9]},      color:"#b8c4d0", cat:"Дюралюминий"},
+  {name:"Д18",                    base:"Al", rules:{Al:[92,96], Cu:[2.2,3], Mg:[0.2,0.8]},                     color:"#b8c4d0", cat:"Дюралюминий"},
+  {name:"В95",                    base:"Al", rules:{Al:[85,91], Zn:[5,7], Mg:[1.8,2.8], Cu:[1.4,2]},            color:"#b8c0cc", cat:"Высокопрочный алюминиевый сплав"},
+  {name:"В95-1",                  base:"Al", rules:{Al:[85,91], Zn:[5,7], Mg:[1.8,2.8], Cu:[1.4,2]},            color:"#b8c0cc", cat:"Высокопрочный алюминиевый сплав"},
+  {name:"В96",                    base:"Al", rules:{Al:[83,89], Zn:[7,9], Mg:[2,3.5], Cu:[2,3]},                color:"#b8c0cc", cat:"Высокопрочный алюминиевый сплав"},
+  {name:"В93",                    base:"Al", rules:{Al:[86,92], Zn:[5,7], Mg:[2,3], Cu:[1.5,2.5]},              color:"#b8c0cc", cat:"Высокопрочный алюминиевый сплав"},
+  {name:"АК4-1",                  base:"Al", rules:{Al:[88,93], Cu:[1.8,2.6], Mg:[1.2,1.8], Ni:[0.8,1.3], Fe:[0.5,1.2]}, color:"#c0c4cc", cat:"Жаропрочный алюминиевый сплав"},
+  {name:"АК6",                    base:"Al", rules:{Al:[91,95], Cu:[1.8,2.6], Mg:[0.4,0.8], Si:[0.7,1.2]},      color:"#c0c8d0", cat:"Алюминиевый сплав"},
+  {name:"АК8",                    base:"Al", rules:{Al:[88,92], Cu:[3.5,4.5], Mg:[0.4,1], Si:[0.5,1.2]},        color:"#c0c8d0", cat:"Алюминиевый сплав"},
+  {name:"АЛ2",                    base:"Al", rules:{Al:[86,92], Si:[10,13]},                                   color:"#c0c8d0", cat:"Силумин"},
+  {name:"АЛ4",                    base:"Al", rules:{Al:[84,90], Si:[8,10.5], Mg:[0.2,0.5], Mn:[0.2,0.5]},       color:"#c0c8d0", cat:"Силумин"},
+  {name:"АЛ9",                    base:"Al", rules:{Al:[85,90], Si:[6,8], Mg:[0.2,0.4]},                       color:"#c0c8d0", cat:"Силумин"},
+  {name:"АЛ25",                   base:"Al", rules:{Al:[80,86], Si:[11,13], Cu:[1.5,3], Mg:[0.5,1.5], Ni:[0.5,1.5]}, color:"#c0c8d0", cat:"Силумин"},
+  {name:"АЛ32",                   base:"Al", rules:{Al:[78,85], Si:[16,18], Cu:[1,2], Mg:[0.3,0.8]},            color:"#c0c8d0", cat:"Силумин"},
+  {name:"АЛ30",                   base:"Al", rules:{Al:[75,83], Si:[16,18], Cu:[4,5], Mg:[0.5,1]},              color:"#c0c8d0", cat:"Силумин"},
+
+  /* ---------- МАГНИЕВЫЕ (10) ---------- */
+  {name:"МА1",                    base:"Mg", rules:{Mg:[96,99], Mn:[1,2]},                                     color:"#d0d4cc", cat:"Магниевый сплав"},
+  {name:"МА2",                    base:"Mg", rules:{Mg:[93,97], Al:[3,5], Zn:[0.5,1.5], Mn:[0.2,0.8]},          color:"#d0d4cc", cat:"Магниевый сплав"},
+  {name:"МА2-1",                  base:"Mg", rules:{Mg:[92,96], Al:[3,5], Zn:[0.5,1.5], Mn:[0.2,0.8]},          color:"#d0d4cc", cat:"Магниевый сплав"},
+  {name:"МА5",                    base:"Mg", rules:{Mg:[89,94], Al:[7,9], Zn:[0.5,1.5], Mn:[0.2,0.8]},          color:"#d0d4cc", cat:"Магниевый сплав"},
+  {name:"МА8",                    base:"Mg", rules:{Mg:[94,98], Mn:[1.3,2.2]},                                 color:"#d0d4cc", cat:"Магниевый сплав"},
+  {name:"МА12",                   base:"Mg", rules:{Mg:[89,94], Zn:[3,5], Zr:[0.5,1.2]},                       color:"#d0d4cc", cat:"Магниевый сплав"},
+  {name:"МА14",                   base:"Mg", rules:{Mg:[92,96], Zn:[5,7], Zr:[0.5,1]},                         color:"#d0d4cc", cat:"Магниевый сплав"},
+  {name:"МА19",                   base:"Mg", rules:{Mg:[85,92], Zn:[1,2], Y:[3,5], Nd:[1,3]},                   color:"#d0d4cc", cat:"Магниевый сплав"},
+  {name:"МА20",                   base:"Mg", rules:{Mg:[84,90], Zn:[1,2], Y:[4,6], Zr:[0.3,0.8]},               color:"#d0d4cc", cat:"Магниевый сплав"},
+  {name:"ВМЛ1",                   base:"Mg", rules:{Mg:[88,93], Zn:[1,2], Y:[2,4], Nd:[1,3], Zr:[0.3,0.8]},     color:"#d0d4cc", cat:"Магниевый сплав"},
+
+  /* ---------- ТУГОПЛАВКИЕ: ВОЛЬФРАМ, МОЛИБДЕН, НИОБИЙ, ТАНТАЛ (20) ---------- */
+  {name:"ВА-1",                   base:"W", rules:{W:[80,90], Al:[2,5], Si:[0.5,2]},                           color:"#8a9098", cat:"Тугоплавкий сплав"},
+  {name:"ВМ-1",                   base:"W", rules:{W:[85,95], Mo:[5,15]},                                      color:"#8a9098", cat:"Тугоплавкий сплав"},
+  {name:"ВМ-2",                   base:"W", rules:{W:[80,90], Mo:[10,20]},                                     color:"#8a9098", cat:"Тугоплавкий сплав"},
+  {name:"ВР-1",                   base:"W", rules:{W:[80,90], Re:[10,20]},                                     color:"#8a9098", cat:"Тугоплавкий сплав"},
+  {name:"ВР-2",                   base:"W", rules:{W:[70,85], Re:[15,30]},                                     color:"#8a9098", cat:"Тугоплавкий сплав"},
+  {name:"ВТ-10",                  base:"W", rules:{W:[85,92], Th:[2,5]},                                       color:"#8a9098", cat:"Тугоплавкий сплав"},
+  {name:"ВК6",                    base:"W", rules:{W:[90,95], Co:[5,8]},                                       color:"#8a9098", cat:"Твёрдый сплав"},
+  {name:"ВК10",                   base:"W", rules:{W:[86,92], Co:[8,12]},                                      color:"#8a9098", cat:"Твёрдый сплав"},
+  {name:"ВК15",                   base:"W", rules:{W:[80,88], Co:[13,18]},                                     color:"#8a9098", cat:"Твёрдый сплав"},
+  {name:"ВК25",                   base:"W", rules:{W:[70,80], Co:[22,28]},                                     color:"#8a9098", cat:"Твёрдый сплав"},
+  {name:"Т15К6",                  base:"W", rules:{W:[75,85], Ti:[12,18], Co:[5,8]},                           color:"#8a9098", cat:"Твёрдый сплав"},
+  {name:"Т5К10",                  base:"W", rules:{W:[80,88], Ti:[3,7], Co:[8,12]},                            color:"#8a9098", cat:"Твёрдый сплав"},
+  {name:"ТТ7К12",                 base:"W", rules:{W:[70,80], Ti:[5,9], Ta:[1,3], Co:[10,14]},                  color:"#8a9098", cat:"Твёрдый сплав"},
+  {name:"Молибденовый сплав МЦ",  base:"Mo", rules:{Mo:[95,99], Zr:[0.05,0.2], Ti:[0.05,0.2]},                 color:"#a0a8b0", cat:"Тугоплавкий сплав"},
+  {name:"Молибден-рениевый",      base:"Mo", rules:{Mo:[50,70], Re:[30,50]},                                   color:"#a0a8b0", cat:"Тугоплавкий сплав"},
+  {name:"Молибден-циркониевый",   base:"Mo", rules:{Mo:[90,98], Zr:[1,5]},                                     color:"#a0a8b0", cat:"Тугоплавкий сплав"},
+  {name:"Молибден-ниобиевый",     base:"Mo", rules:{Mo:[80,95], Nb:[5,20]},                                    color:"#a0a8b0", cat:"Тугоплавкий сплав"},
+  {name:"Ниобий-гафниевый",       base:"Nb", rules:{Nb:[85,95], Hf:[5,15]},                                    color:"#a8b0b8", cat:"Тугоплавкий сплав"},
+  {name:"Ниобий-цирконий-титан",  base:"Nb", rules:{Nb:[70,85], Zr:[5,15], Ti:[5,15]},                         color:"#a8b0b8", cat:"Тугоплавкий сплав"},
+  {name:"Тантал-ниобиевый",       base:"Ta", rules:{Ta:[60,85], Nb:[15,40]},                                   color:"#a8b0b8", cat:"Тугоплавкий сплав"},
+
+  /* ---------- БЛАГОРОДНЫЕ: ЗОЛОТО, СЕРЕБРО, ПЛАТИНА (20) ---------- */
+  {name:"Золото 375",             base:"Au", rules:{Au:[35,39], Ag:[10,15], Cu:[45,55]},                       color:"#d8b850", cat:"Драгоценный сплав"},
+  {name:"Золото 500",             base:"Au", rules:{Au:[48,52], Ag:[5,15], Cu:[35,45]},                        color:"#e0c050", cat:"Драгоценный сплав"},
+  {name:"Золото 585",             base:"Au", rules:{Au:[57,60], Ag:[5,15], Cu:[25,35]},                        color:"#e8c850", cat:"Драгоценный сплав"},
+  {name:"Золото 750",             base:"Au", rules:{Au:[73,77], Ag:[5,15], Cu:[10,20]},                        color:"#e8c850", cat:"Драгоценный сплав"},
+  {name:"Золото 958",             base:"Au", rules:{Au:[94,97], Ag:[2,5], Cu:[1,3]},                           color:"#f0d060", cat:"Драгоценный сплав"},
+  {name:"Золото 999",             base:"Au", rules:{Au:[98.5,99.9], Ag:[0.05,0.5], Cu:[0.05,0.5]},             color:"#f4d868", cat:"Драгоценный сплав", virtual:{Ag:0.2, Cu:0.2}},
+  {name:"Зелёное золото",         base:"Au", rules:{Au:[70,85], Ag:[12,20], Cu:[3,8]},                        color:"#d8e080", cat:"Драгоценный сплав"},
+  {name:"Серое золото",           base:"Au", rules:{Au:[70,80], Ni:[5,10], Fe:[2,5], Cu:[5,15]},               color:"#c8c8c8", cat:"Драгоценный сплав"},
+  {name:"Чёрное золото",          base:"Au", rules:{Au:[70,80], Co:[10,20], Cr:[5,10]},                        color:"#404040", cat:"Драгоценный сплав"},
+  {name:"Серебро 925",            base:"Ag", rules:{Ag:[91,94], Cu:[5,9]},                                     color:"#e0e4e8", cat:"Драгоценный сплав"},
+  {name:"Серебро 875",            base:"Ag", rules:{Ag:[86,89], Cu:[10,14]},                                   color:"#d8dce0", cat:"Драгоценный сплав"},
+  {name:"Серебро 830",            base:"Ag", rules:{Ag:[82,84], Cu:[15,18]},                                   color:"#d8dce0", cat:"Драгоценный сплав"},
+  {name:"Серебро 800",            base:"Ag", rules:{Ag:[79,81], Cu:[18,22]},                                   color:"#d8dce0", cat:"Драгоценный сплав"},
+  {name:"Серебро-кадмиевое",      base:"Ag", rules:{Ag:[85,92], Cd:[5,15]},                                    color:"#d8dce0", cat:"Драгоценный сплав"},
+  {name:"Серебро-цинковое",       base:"Ag", rules:{Ag:[60,80], Zn:[15,30], Cu:[5,15]},                        color:"#d0d8e0", cat:"Драгоценный сплав"},
+  {name:"Платина 950",            base:"Pt", rules:{Pt:[94,96], Ir:[4,6]},                                     color:"#d0d4d8", cat:"Драгоценный сплав"},
+  {name:"Платина 900",            base:"Pt", rules:{Pt:[89,91], Ir:[9,11]},                                    color:"#d0d4d8", cat:"Драгоценный сплав"},
+  {name:"Платина-медная",         base:"Pt", rules:{Pt:[70,90], Cu:[10,30]},                                   color:"#d0d0d0", cat:"Драгоценный сплав"},
+  {name:"Платина-вольфрамовая",   base:"Pt", rules:{Pt:[80,95], W:[5,20]},                                     color:"#c8ccd0", cat:"Драгоценный сплав"},
+  {name:"Палладий-рутениевый",    base:"Pd", rules:{Pd:[85,95], Ru:[5,15]},                                    color:"#c8ccd0", cat:"Драгоценный сплав"},
+
+  /* ---------- ЛЕГКОПЛАВКИЕ, ПРИПОИ, БАББИТЫ (20) ---------- */
+  {name:"ПОС-61",                 base:"Sn", rules:{Sn:[58,62], Pb:[38,42]},                                   color:"#c8ccd0", cat:"Припой"},
+  {name:"ПОС-50",                 base:"Sn", rules:{Sn:[48,52], Pb:[48,52]},                                   color:"#c8ccd0", cat:"Припой"},
+  {name:"ПОС-40",                 base:"Sn", rules:{Sn:[38,42], Pb:[58,62]},                                   color:"#c8ccd0", cat:"Припой"},
+  {name:"ПОС-30",                 base:"Sn", rules:{Sn:[28,32], Pb:[68,72]},                                   color:"#c8ccd0", cat:"Припой"},
+  {name:"ПОС-18",                 base:"Sn", rules:{Sn:[17,19], Pb:[80,83]},                                   color:"#c8ccd0", cat:"Припой"},
+  {name:"ПОС-90",                 base:"Sn", rules:{Sn:[88,92], Pb:[8,12]},                                    color:"#c8ccd0", cat:"Припой"},
+  {name:"ПОСК-50",                base:"Sn", rules:{Sn:[48,52], Pb:[30,35], Sb:[1,3]},                         color:"#c0c4c8", cat:"Припой"},
+  {name:"ПОССу-61-0.5",           base:"Sn", rules:{Sn:[58,62], Sb:[0.2,1]},                                   color:"#c8ccd0", cat:"Припой"},
+  {name:"ПОССу-40-2",             base:"Sn", rules:{Sn:[38,42], Sb:[1.5,2.5]},                                 color:"#c0c4c8", cat:"Припой"},
+  {name:"Припой ПМЦ-54",          base:"Cu", rules:{Cu:[52,56], Zn:[44,48]},                                   color:"#c8a048", cat:"Припой"},
+  {name:"Припой ПСр-45",          base:"Ag", rules:{Ag:[44,46], Cu:[29,31], Zn:[23,25]},                       color:"#d0d4d8", cat:"Припой"},
+  {name:"Припой ПСр-25",          base:"Ag", rules:{Ag:[24,26], Cu:[39,41], Zn:[33,35]},                       color:"#d0d4d8", cat:"Припой"},
+  {name:"Припой ПСр-72",          base:"Ag", rules:{Ag:[71,73], Cu:[27,29]},                                   color:"#d8dce0", cat:"Припой"},
+  {name:"Бабит Б83",              base:"Sn", rules:{Sn:[80,85], Sb:[9,11], Cu:[5,7]},                          color:"#b8bcc0", cat:"Антифрикционный сплав"},
+  {name:"Бабит Б88",              base:"Sn", rules:{Sn:[75,80], Sb:[11,13], Cu:[5,7]},                         color:"#b8bcc0", cat:"Антифрикционный сплав"},
+  {name:"Бабит Б16",              base:"Sn", rules:{Sn:[50,60], Pb:[25,35], Sb:[14,18], Cu:[1,3]},              color:"#b0b4b8", cat:"Антифрикционный сплав"},
+  {name:"Бабит БН",               base:"Sn", rules:{Sn:[65,75], Pb:[10,20], Sb:[10,15], Cu:[3,6]},              color:"#b8bcc0", cat:"Антифрикционный сплав"},
+  {name:"Свинцовый баббит",       base:"Pb", rules:{Pb:[70,85], Sb:[10,15], Sn:[5,15]},                        color:"#9aa0a8", cat:"Антифрикционный сплав"},
+  {name:"Кальциевый баббит",      base:"Pb", rules:{Pb:[80,90], Ca:[0.5,2], Sn:[5,10]},                        color:"#9aa0a8", cat:"Антифрикционный сплав"},
+  {name:"Оловянно-цинковый припой", base:"Sn", rules:{Sn:[60,80], Zn:[10,25], Pb:[5,15]},                      color:"#c8ccd0", cat:"Припой"},
+
+  /* ---------- РЗМ, МАГНИТНЫЕ, СПЕЦИАЛЬНЫЕ (15) ---------- */
+  {name:"Неодим-диспрозий-железо-бор", base:"Nd", rules:{Nd:[20,28], Dy:[3,6], Fe:[65,72], B:[0.8,1.2]},      color:"#b8b4b0", cat:"Магнитный сплав"},
+  {name:"Неодим-празеодим-железо-бор", base:"Nd", rules:{Nd:[18,25], Pr:[5,10], Fe:[65,72], B:[0.8,1.2]},      color:"#b8b4b0", cat:"Магнитный сплав"},
+  {name:"Самарий-кобальтовый 1:5", base:"Co", rules:{Co:[60,70], Sm:[30,38]},                                  color:"#b0b8c0", cat:"Магнитный сплав"},
+  {name:"Альнико",                base:"Fe", rules:{Fe:[45,55], Al:[8,12], Ni:[20,25], Co:[10,15]},             color:"#a8a8b0", cat:"Магнитный сплав"},
+  {name:"Альнико 5",              base:"Fe", rules:{Fe:[40,50], Al:[8,12], Ni:[20,25], Co:[15,20], Ti:[1,3]},   color:"#a8a8b0", cat:"Магнитный сплав"},
+  {name:"Магнико",                base:"Fe", rules:{Fe:[50,60], Co:[20,30], Ni:[10,20], Al:[5,10]},             color:"#a8a8b0", cat:"Магнитный сплав"},
+  {name:"Железо-кремний-алюминий", base:"Fe", rules:{Fe:[85,95], Si:[5,10], Al:[2,5]},                         color:"#a0a8b0", cat:"Магнитный сплав"},
+  {name:"Терменд",                base:"Fe", rules:{Fe:[60,70], Ni:[25,35], Cr:[3,6]},                         color:"#b0b8c0", cat:"Магнитный сплав"},
+  {name:"Мишметалл МЦ",           base:"Ce", rules:{Ce:[45,55], La:[20,30], Nd:[15,25], Pr:[5,10]},             color:"#c0c4b8", cat:"РЗМ-сплав"},
+  {name:"Церий-железо",           base:"Ce", rules:{Ce:[70,85], Fe:[15,30]},                                   color:"#c0c4b8", cat:"РЗМ-сплав"},
+  {name:"Лантан-никелевый",       base:"La", rules:{La:[60,80], Ni:[20,40]},                                   color:"#c0c4b8", cat:"РЗМ-сплав"},
+  {name:"Празеодим-неодимовый",   base:"Pr", rules:{Pr:[50,80], Nd:[20,50]},                                   color:"#c0c0b8", cat:"РЗМ-сплав"},
+  {name:"Гадолиний-железо",       base:"Gd", rules:{Gd:[70,85], Fe:[15,30]},                                   color:"#b8bcbc", cat:"Магнитный сплав"},
+  {name:"Тербий-диспрозий-железо", base:"Tb", rules:{Tb:[30,50], Dy:[20,40], Fe:[20,40]},                      color:"#b8bcbc", cat:"Магнитный сплав"},
+  {name:"Иттрий-алюминиевый",     base:"Y", rules:{Y:[70,85], Al:[15,30]},                                     color:"#c0c8cc", cat:"РЗМ-сплав"},
+
+  /* ---------- ПРЕЦИЗИОННЫЕ, СПЛАВЫ СОПРОТИВЛЕНИЯ, ТЕРМОПАРЫ (15) ---------- */
+  {name:"Манганин МНМц3-12",      base:"Cu", rules:{Cu:[84,88], Mn:[11,13], Ni:[2,4]},                        color:"#b8a898", cat:"Прецизионный сплав"},
+  {name:"Константан МНМц40-1.5",  base:"Cu", rules:{Cu:[57,60], Ni:[39,41], Mn:[1,2]},                        color:"#b8b0a8", cat:"Прецизионный сплав"},
+  {name:"Нихром Х20Н80",          base:"Ni", rules:{Ni:[75,78], Cr:[20,23]},                                   color:"#a8b0b8", cat:"Сплав сопротивления"},
+  {name:"Нихром Х15Н60",          base:"Ni", rules:{Ni:[55,65], Cr:[14,18], Fe:[20,30]},                       color:"#a8b0b8", cat:"Сплав сопротивления"},
+  {name:"Нихром Х20Н80-Н",        base:"Ni", rules:{Ni:[75,78], Cr:[20,23], Si:[0.5,1.5]},                     color:"#a8b0b8", cat:"Сплав сопротивления"},
+  {name:"Фехраль Х13Ю4",          base:"Fe", rules:{Fe:[75,85], Cr:[12,15], Al:[3,5]},                         color:"#8a8e94", cat:"Сплав сопротивления"},
+  {name:"Фехраль Х23Ю5",          base:"Fe", rules:{Fe:[70,75], Cr:[22,25], Al:[4,6]},                         color:"#8a8e94", cat:"Сплав сопротивления"},
+  {name:"Фехраль Х27Ю5Т",         base:"Fe", rules:{Fe:[65,70], Cr:[26,28], Al:[4,6], Ti:[0.1,0.3]},            color:"#8a8e94", cat:"Сплав сопротивления"},
+  {name:"Термопара хромель",      base:"Ni", rules:{Ni:[85,92], Cr:[8,12]},                                    color:"#b0b8c0", cat:"Термопарный сплав"},
+  {name:"Термопара алюмель",      base:"Ni", rules:{Ni:[93,97], Al:[1,3], Mn:[1,3], Si:[0.5,1.5]},              color:"#b0b8c0", cat:"Термопарный сплав"},
+  {name:"Термопара копель",       base:"Cu", rules:{Cu:[55,60], Ni:[42,45]},                                   color:"#b8b0a8", cat:"Термопарный сплав"},
+  {name:"Термопара вольфрам-рений", base:"W", rules:{W:[70,80], Re:[20,30]},                                   color:"#8a9098", cat:"Термопарный сплав"},
+  {name:"Инвар 36Н",              base:"Fe", rules:{Fe:[62,66], Ni:[34,38]},                                   color:"#b0b8c0", cat:"Прецизионный сплав"},
+  {name:"Суперинвар 32НКД",       base:"Fe", rules:{Fe:[55,65], Ni:[30,35], Co:[3,8], Cu:[0.5,1.5]},           color:"#b0b8c0", cat:"Прецизионный сплав"},
+  {name:"Элинвар 44НХТЮ",         base:"Fe", rules:{Fe:[50,60], Ni:[40,45], Cr:[5,10], Ti:[1,3], Al:[0.5,1.5]}, color:"#a8b0b8", cat:"Прецизионный сплав"},
+
+  /* ---------- ЦИНКОВЫЕ, СВИНЦОВЫЕ, ОЛОВЯННЫЕ СПЕЦИАЛЬНЫЕ (5) ---------- */
+  {name:"ЦАМ4-1",                 base:"Zn", rules:{Zn:[90,95], Al:[3,5], Cu:[0.5,1.5]},                       color:"#b0b8c0", cat:"Цинковый сплав"},
+  {name:"ЦАМ10-5",                base:"Zn", rules:{Zn:[82,88], Al:[9,11], Cu:[4,6]},                         color:"#b0b8c0", cat:"Цинковый сплав"},
+  {name:"Свинец-серебряный",      base:"Pb", rules:{Pb:[95,99], Ag:[1,3]},                                     color:"#9aa0a8", cat:"Свинцовый сплав"},
+  {name:"Свинец-кальциевый",      base:"Pb", rules:{Pb:[97,99], Ca:[0.5,2]},                                   color:"#9aa0a8", cat:"Свинцовый сплав"},
+  {name:"Олово-цинковый",         base:"Sn", rules:{Sn:[70,90], Zn:[10,30]},                                   color:"#c8ccd0", cat:"Оловянный сплав"},
+];
+
+
+
+
+/* ============================================================
+   2b. ГЕНЕРАТОР +3000 СПЛАВОВ
+   ============================================================ */
+(function generate3000(){
+  const TARGET = 3000;
+
+  const usedNames = new Set(ALLOYS.map(a => a.name));
+  const usedRules = new Set(ALLOYS.map(a => a.base + "|" + JSON.stringify(a.rules)));
+
+  const byBase = {};
+  METALS.forEach(m => { byBase[m.sym] = m; });
+
+  // Расширенный пул легирующих (только символы из METALS — фильтр ниже)
+  const rawPool = {
+    Fe: ["C","Cr","Ni","Mo","V","W","Mn","Si","Ti","Al","Cu","Nb","Co","B","N","P","S","Zr","Ta","Hf","Re","Sn","Sb","Be","Ca","Mg","Y","La","Ce","Nd"],
+    Cu: ["Zn","Sn","Ni","Al","Mn","Si","Fe","Pb","Be","Cr","Zr","Ag","P","As","Cd","Ti","Co","Mg","Sb","Bi","Te","Li","Ca","Sc","Y","La","Ce"],
+    Al: ["Cu","Mg","Si","Zn","Mn","Fe","Ni","Ti","Cr","Li","Zr","Sc","V","Be","Sn","Pb","Bi","Ca","Sr","Na","K","Y","La","Ce","Nd","Gd","Ag"],
+    Ti: ["Al","V","Mo","Cr","Fe","Sn","Zr","Nb","Si","O","Mn","Cu","Ni","Ta","Hf","W","Re","Ru","Pd","Y","La","Ce","Nd","Sc","Be","Co","B","C"],
+    Ni: ["Cr","Fe","Mo","Co","W","Al","Ti","Nb","Cu","Si","Mn","Ta","C","B","Zr","Hf","Re","Ru","Rh","Pd","Pt","Y","La","Ce","Nd","Mg","Ca","V","Sn"],
+    Co: ["Cr","Ni","W","Mo","Fe","C","Al","Ti","Ta","Nb","Si","Mn","B","Zr","Hf","Re","Ru","Pd","Pt","Y","La","Ce","Nd","Sm","Cu","Sn"],
+    Mg: ["Al","Zn","Mn","Zr","Li","Y","Nd","Ag","Si","Ca","Th","Gd","Ce","La","Sc","Be","Sn","Pb","Bi","Cd","Ti","Fe","Ni","Cu","Sr","Ba"],
+    Zn: ["Al","Cu","Mg","Pb","Cd","Fe","Sn","Ti","Mn","Ni","Si","Sb","Bi","Ca","Cr","Ag","Li"],
+    Sn: ["Pb","Sb","Cu","Ag","Bi","Zn","In","Cd","Ni","As","Te","Se","Au","Pt","Pd","Ga","Tl","Hg","Mg","Ca","Ba","Li","Na","K"],
+    Pb: ["Sb","Sn","Ag","Ca","Cu","As","Bi","Cd","Te","Se","Ba","Sr","Li","Na","K","Hg","Tl","In","Ga","Au","Pt","Pd"],
+    Bi: ["Pb","Sn","Cd","Sb","In","Ag","Cu","Te","Se","Hg","Tl","Ga","Zn","Au","Pt","Pd","Ca","Ba","Li","Na","K"],
+    Ag: ["Cu","Zn","Cd","Sn","Ni","Pd","Au","Mn","Li","Pt","Rh","Ru","Ir","Os","In","Ga","Ge","Si","Be","Mg","Ca","Sb","Bi","Pb","Te"],
+    Au: ["Ag","Cu","Ni","Zn","Pd","Pt","Fe","Cr","Co","Ti","Mn","Rh","Ru","Ir","Os","In","Ga","Ge","Si","Be","Mg","Ca","Sb","Bi","Pb","Te","Sn"],
+    Pt: ["Ir","Rh","Pd","Ru","Os","Au","Cu","Ni","W","Co","Fe","Mo","Ti","Zr","Hf","Re","Ta","Nb","Ag","Sn","Pb","Bi","In","Ga","Ge","Si"],
+    Pd: ["Ag","Cu","Au","Ru","Ni","Pt","Rh","Co","Fe","Mn","Zn","Sn","Pb","Bi","In","Ga","Ge","Si","Ir","Os"],
+    W:  ["Co","Ni","Fe","Mo","Re","Ta","Nb","Ti","Cr","Th","La","Ce","Hf","Zr","V","C","B","Si","Y","Nd","Sm","Gd","Dy","Er","Yb","Lu"],
+    Mo: ["Ti","Zr","W","Re","Nb","Ta","Hf","C","Si","La","Y","Ce","Nd","Sm","Gd","Dy","Er","Yb","Lu","B","Al","Cr","Fe","Ni","Co","V"],
+    Nb: ["Ti","Zr","Hf","Ta","W","Mo","Sn","Al","V","Si","C","B","Re","Ru","Rh","Pd","Pt","Y","La","Ce","Nd","Sm","Gd","Dy","Er","Yb","Lu"],
+    Ta: ["W","Nb","Hf","Mo","Ti","Zr","Re","C","Si","B","Y","La","Ce","Nd","Sm","Gd","Dy","Er","Yb","Lu","Ru","Rh","Pd","Pt","V","Cr"],
+    Zr: ["Sn","Nb","Fe","Cr","Ni","Ti","O","Hf","Cu","Mo","W","Ta","Re","Al","V","Si","C","B","Y","La","Ce","Nd","Sm","Gd","Dy","Er","Yb","Lu","Be","Mg"],
+    Hf: ["Zr","Ta","Nb","Ti","W","Mo","Fe","Sn","Re","C","B","Si","Y","La","Ce","Nd","Sm","Gd","Dy","Er","Yb","Lu","V","Cr","Ni","Co"],
+    Cr: ["Ni","Fe","Mo","W","V","Ti","Nb","Ta","Al","Si","C","Re","B","Zr","Hf","Ru","Rh","Pd","Pt","Y","La","Ce","Nd","Sm","Gd","Dy","Er","Yb","Lu","Co","Cu","Mn","Sn","N","P","S"],
+    V:  ["Ti","Cr","Fe","Al","Nb","Ta","W","Mo","Si","C","B","Re","Zr","Hf","Ru","Rh","Pd","Pt","Y","La","Ce","Nd","Sm","Gd","Dy","Er","Yb","Lu","Co","Ni","Mn"],
+    Mn: ["Fe","Cu","Al","Ni","Cr","Si","C","Zn","Ti","V","Mo","W","Nb","Ta","Zr","Hf","Re","B","N","P","S","Co","Sn","Sb","Bi","Pb","Ag","Au","Pt","Pd"],
+    Be: ["Cu","Ni","Al","Fe","Ti","Co","Mg","Cr","V","Mo","W","Nb","Ta","Zr","Hf","Re","Si","C","B","Y","La","Ce","Nd","Sm","Gd","Dy","Er","Yb","Lu","Ag","Au"],
+    Re: ["W","Mo","Ni","Co","Fe","Cr","Ta","Hf","Nb","Ti","Zr","V","C","B","Si","Y","La","Ce","Nd","Sm","Gd","Dy","Er","Yb","Lu","Ru","Rh","Pd","Pt","Ir","Os"],
+    Ir: ["Pt","Os","Rh","Ru","Pd","W","Mo","Re","Ta","Nb","Hf","Zr","Ti","Cr","V","Fe","Co","Ni","Cu","Ag","Au","Y","La","Ce","Nd","Sm","Gd","Dy","Er","Yb","Lu"],
+    Os: ["Ir","Pt","Ru","Rh","Re","W","Mo","Ta","Nb","Hf","Zr","Ti","Cr","V","Fe","Co","Ni","Cu","Ag","Au","Y","La","Ce","Nd","Sm","Gd","Dy","Er","Yb","Lu"],
+    Ru: ["Ir","Os","Pt","Pd","Rh","Co","Ni","W","Mo","Re","Ta","Nb","Hf","Zr","Ti","Cr","V","Fe","Cu","Ag","Au","Y","La","Ce","Nd","Sm","Gd","Dy","Er","Yb","Lu"],
+    Rh: ["Pt","Pd","Ir","Ru","Os","Au","Ag","W","Mo","Re","Ta","Nb","Hf","Zr","Ti","Cr","V","Fe","Co","Ni","Cu","Y","La","Ce","Nd","Sm","Gd","Dy","Er","Yb","Lu"],
+    Sc: ["Al","Mg","Ti","Zr","Y","Li","Cu","Hf","Nb","Ta","V","Cr","Fe","Co","Ni","W","Mo","Re","La","Ce","Nd","Sm","Gd","Dy","Er","Yb","Lu","Be","Ca","Sr","Ba"],
+    Y:  ["Al","Mg","Ti","Zr","Fe","Ni","Co","Cu","Cr","Hf","Nb","Ta","V","W","Mo","Re","La","Ce","Nd","Sm","Gd","Dy","Er","Yb","Lu","Be","Ca","Sr","Ba","Sc"],
+    La: ["Ce","Nd","Pr","Fe","Ni","Co","Cu","Al","Mg","Sm","Gd","Dy","Er","Yb","Lu","Sc","Y","Ti","Zr","Hf","Nb","Ta","V","Cr","W","Mo","Re","Be","Ca","Sr","Ba"],
+    Ce: ["La","Nd","Pr","Fe","Ni","Co","Cu","Al","Mg","Sm","Gd","Dy","Er","Yb","Lu","Sc","Y","Ti","Zr","Hf","Nb","Ta","V","Cr","W","Mo","Re","Be","Ca","Sr","Ba"],
+    Nd: ["Pr","Ce","La","Fe","Co","B","Dy","Tb","Al","Cu","Sm","Gd","Er","Yb","Lu","Sc","Y","Ti","Zr","Hf","Nb","Ta","V","Cr","W","Mo","Re","Be","Ca","Sr","Ba","Ni","Mg"],
+    Gd: ["Tb","Dy","Fe","Co","Ni","Al","Cu","Mg","Sm","Nd","Pr","Ce","La","Er","Yb","Lu","Sc","Y","Ti","Zr","Hf","Nb","Ta","V","Cr","W","Mo","Re","Be","Ca","Sr","Ba"],
+    Th: ["U","Ce","La","Fe","Ni","W","Mo","Re","Ta","Nb","Hf","Zr","Ti","Cr","V","Co","Cu","Al","Mg","Sm","Gd","Dy","Er","Yb","Lu","Sc","Y","Be"],
+    U:  ["Th","Mo","Nb","Zr","Ti","Fe","Si","Al","W","Re","Ta","Hf","Cr","V","Co","Ni","Cu","Mg","Sm","Gd","Dy","Er","Yb","Lu","Sc","Y","Be","Ca","Sr","Ba"],
+  };
+
+  // Фильтруем: только существующие в METALS символы, базы — тоже
+  const leghPool = {};
+  Object.keys(rawPool).forEach(base => {
+    if (!byBase[base]) return;
+    const filtered = rawPool[base].filter(sym => byBase[sym] && sym !== base);
+    if (filtered.length) leghPool[base] = filtered;
+  });
+
+  const categories = {
+    Fe: ["Легированная сталь","Нержавеющая сталь","Инструментальная сталь","Жаропрочная сталь","Прецизионный сплав","Магнитный сплав","Сплав сопротивления","Пружинная сталь","Штамповая сталь","Жаростойкая сталь","Теплоустойчивая сталь","Износостойкая сталь"],
+    Cu: ["Латунь","Бронза","Медный сплав","Прецизионный сплав","Сплав сопротивления","Припой","Антифрикционный сплав"],
+    Al: ["Алюминиевый сплав","Дюралюминий","Силумин","Высокопрочный алюминиевый сплав","Жаропрочный алюминиевый сплав","Ковочный алюминиевый сплав"],
+    Ti: ["Титановый сплав","Жаропрочный титановый сплав","Криогенный титановый сплав"],
+    Ni: ["Никелевый сплав","Жаропрочный сплав","Сплав сопротивления","Магнитный сплав","Термопарный сплав","Коррозионностойкий никелевый сплав"],
+    Co: ["Кобальтовый сплав","Твёрдый сплав","Магнитный сплав","Жаропрочный сплав","Стоматологический сплав"],
+    Mg: ["Магниевый сплав","Ультралёгкий сплав","Жаропрочный магниевый сплав"],
+    Zn: ["Цинковый сплав","Антикоррозионный цинковый сплав"],
+    Sn: ["Припой","Антифрикционный сплав","Оловянный сплав","Баббит"],
+    Pb: ["Свинцовый сплав","Антифрикционный сплав","Батарейный сплав","Радиационно-защитный сплав"],
+    Bi: ["Легкоплавкий сплав","Припой"],
+    Ag: ["Драгоценный сплав","Припой","Электротехнический сплав"],
+    Au: ["Драгоценный сплав","Ювелирный сплав"],
+    Pt: ["Драгоценный сплав","Благородный тугоплавкий сплав","Катализаторный сплав"],
+    Pd: ["Драгоценный сплав","Катализаторный сплав"],
+    W:  ["Твёрдый сплав","Тугоплавкий сплав","Тяжёлый сплав"],
+    Mo: ["Тугоплавкий сплав"],
+    Nb: ["Тугоплавкий сплав","Сверхпроводящий сплав"],
+    Ta: ["Тугоплавкий сплав","Конденсаторный сплав"],
+    Zr: ["Тугоплавкий сплав","Ядерный сплав"],
+    Hf: ["Тугоплавкий сплав","Ядерный сплав"],
+    Cr: ["Тугоплавкий сплав","Жаростойкий сплав"],
+    V:  ["Тугоплавкий сплав"],
+    Mn: ["Тугоплавкий сплав","Специальный сплав"],
+    Be: ["Специальный сплав","Рентгеновский сплав"],
+    Re: ["Тугоплавкий сплав"],
+    Ir: ["Благородный тугоплавкий сплав"],
+    Os: ["Благородный тугоплавкий сплав"],
+    Ru: ["Благородный тугоплавкий сплав"],
+    Rh: ["Благородный тугоплавкий сплав"],
+    Sc: ["РЗМ-сплав","Алюминиево-скандиевый сплав"],
+    Y:  ["РЗМ-сплав"],
+    La: ["РЗМ-сплав","Гидридный сплав"],
+    Ce: ["РЗМ-сплав","Мишметалл"],
+    Nd: ["Магнитный сплав","РЗМ-сплав"],
+    Gd: ["Магнитный сплав","РЗМ-сплав"],
+    Th: ["Редкие","Ядерный сплав"],
+    U:  ["Редкие","Ядерный сплав"],
+  };
+
+  const prefixes = [
+    "Сплав","Марка","Композит","Спецсплав","Экспериментальный","Опытный","Лабораторный",
+    "Термостойкий","Коррозионностойкий","Высокопрочный","Жаростойкий","Криогенный",
+    "Износостойкий","Ударопрочный","Радиационностойкий","Магнитный","Немагнитный",
+    "Электротехнический","Прецизионный","Биосовместимый","Лёгкий","Тяжёлый",
+    "Антифрикционный","Конструкционный","Инструментальный","Быстрорежущий",
+    "Штамповый","Пружинный","Сварочный","Наплавный","Порошковый","Литейный",
+    "Деформируемый","Гранулированный","Монокристаллический","Нанокристаллический",
+    "Аморфный","Эвтектический","Композиционный","Армированный"
+  ];
+  const suffixes = [
+    "-М","-Т","-Л","-Н","-В","-Э","-У","-П","-С","-К","-Р","-Б","-Д","-Ж","-З","-И",
+    "-О","-Ф","-Х","-Ц","-Ч","-Ш","-Щ","-Ю","-Я","-А","-Г","-Е","-Ё","-Й","-Ъ","-Ы","-Ь"
+  ];
+
+  const bases = Object.keys(leghPool);
+  let made = 0;
+  let guard = 0;
+  const MAX_GUARD = 2000000;
+
+  while (made < TARGET && guard < MAX_GUARD){
+    guard++;
+    const base = bases[(Math.random() * bases.length) | 0];
+    const pool = leghPool[base];
+
+    // 1..7 легирующих
+    const k = 1 + ((Math.random() * 7) | 0);
+    const chosen = [];
+    const tmp = pool.slice();
+    for (let i = 0; i < k && tmp.length; i++){
+      const idx = (Math.random() * tmp.length) | 0;
+      chosen.push(tmp.splice(idx, 1)[0]);
+    }
+    if (!chosen.length) continue;
+
+    // база 30..92%, остальное — легирующие
+    const basePct = 30 + Math.random() * 62;
+    const remaining = 100 - basePct;
+    const weights = chosen.map(() => 0.2 + Math.random() * 2);
+    const wSum = weights.reduce((a, b) => a + b, 0);
+    const parts = weights.map(w => (w / wSum) * remaining);
+
+    const rules = {};
+    rules[base] = [
+      Math.max(3, Math.round(basePct - 10)),
+      Math.min(99.5, Math.round(basePct + 10))
+    ];
+    chosen.forEach((sym, i) => {
+      const p = Math.max(0.01, parts[i]);
+      // для очень малых добавок допускаем узкий диапазон
+      const span = Math.max(0.3, p * 0.8);
+      const min = Math.max(0.01, +(p - span).toFixed(2));
+      const max = +(p + span).toFixed(2);
+      rules[sym] = [min, max];
+    });
+
+    const key = base + "|" + JSON.stringify(rules);
+    if (usedRules.has(key)) continue;
+
+    // уникальное имя — комбинация префикса, базы, 2-3 легирующих, номера, суффикса
+    let name;
+    let tries = 0;
+    do {
+      const pfx = prefixes[(Math.random() * prefixes.length) | 0];
+      const sfx = Math.random() < 0.7 ? suffixes[(Math.random() * suffixes.length) | 0] : "";
+      const num = 1000 + ((Math.random() * 9000) | 0);
+      const legPart = chosen.slice(0, 1 + ((Math.random() * Math.min(3, chosen.length)) | 0)).join("");
+      name = `${pfx} ${base}${legPart}-${num}${sfx}`;
+      tries++;
+      if (tries > 200){
+        // аварийный уникализатор
+        name = `${pfx} ${base}${legPart}-${made + 10000}${sfx}`;
+        break;
+      }
+    } while (usedNames.has(name));
+    if (usedNames.has(name)) continue;
+
+    const m1 = byBase[base];
+    const m2 = byBase[chosen[0]];
+    const mix = (c1, c2) => {
+      const r = (parseInt(c1.slice(1,3),16) + parseInt(c2.slice(1,3),16)) >> 1;
+      const g = (parseInt(c1.slice(3,5),16) + parseInt(c2.slice(3,5),16)) >> 1;
+      const b = (parseInt(c1.slice(5,7),16) + parseInt(c2.slice(5,7),16)) >> 1;
+      return "#" + [r,g,b].map(v => v.toString(16).padStart(2,"0")).join("");
+    };
+
+    const cats = categories[base] || ["Специальный сплав"];
+    const cat = cats[(Math.random() * cats.length) | 0];
+
+    ALLOYS.push({ name, base, rules, color: mix(m1.base, m2.base), cat });
+    usedNames.add(name);
+    usedRules.add(key);
+    made++;
+
+    // прогресс в консоль каждые 500
+    if (made % 500 === 0) console.log(`[Сплавий] …${made}/${TARGET}`);
+  }
+
+  console.log(`[Сплавий] Сгенерировано ${made} новых сплавов. Всего: ${ALLOYS.length}`);
+  if (made < TARGET) {
+    console.warn(`[Сплавий] Не удалось достичь ${TARGET} — сгенерировано ${made}. Увеличьте пул легирующих или MAX_GUARD.`);
+  }
+})();
+
+/* ============================================================
+   3. ОПРЕДЕЛЕНИЕ НАЗВАНИЯ СПЛАВА
+   ============================================================ */
+function identifyAlloy(comp){
+  if (!comp.length) return null;
+  if (comp.length === 1){
+    const m = metalBySym(comp[0].sym);
+    return {name:m.name, cat:"Чистый металл", known:true, sym:m.sym};
+  }
+  const pct = {};
+  comp.forEach(c => pct[c.sym] = c.pct);
+  const base = comp[0].sym;
+
+  // Сначала — точные попадания (наибольшая специфичность)
+  const matches = [];
+  for (const a of ALLOYS){
+    if (a.base !== base) continue;
+    let ok = true;
+    for (const [sym, [min, max]] of Object.entries(a.rules)){
+      let p = pct[sym];
+      if (p === undefined){
+        if (a.virtual && a.virtual[sym] !== undefined) p = a.virtual[sym];
+        else { ok = false; break; }
+      }
+      if (p < min || p > max){ ok = false; break; }
+    }
+    if (!ok) continue;
+    const allowed = new Set(Object.keys(a.rules));
+    if (a.virtual) Object.keys(a.virtual).forEach(s => allowed.add(s));
+    let extra = false;
+    for (const c of comp){
+      if (!allowed.has(c.sym) && c.pct > 3){ extra = true; break; }
+    }
+    if (extra) continue;
+    // Специфичность = число правил (чем больше, тем точнее)
+    matches.push({a, spec: Object.keys(a.rules).length});
+  }
+  if (matches.length){
+    matches.sort((x,y) => y.spec - x.spec);
+    const best = matches[0].a;
+    return {name:best.name, cat:best.cat, known:true, sym:best.base, color:best.color};
+  }
+
+  // Неизвестный сплав — генерируем название
+  const baseMetal = metalBySym(base);
+  const legh = comp.slice(1).filter(c => c.pct >= 2).map(c => metalBySym(c.sym).name.toLowerCase());
+  let name;
+  if (legh.length === 0) name = `${baseMetal.name} (с микродобавками)`;
+  else if (legh.length === 1) name = `${baseMetal.name}-${legh[0]} сплав`;
+  else name = `${baseMetal.name}-${legh.slice(0,2).join("-")} сплав`;
+  name = name.charAt(0).toUpperCase() + name.slice(1);
+  return {name, cat:"Нестандартный сплав", known:false, sym:base, color:baseMetal.base};
+}
+
+/* ============================================================
+   4. СОСТОЯНИЕ
+   ============================================================ */
+const S = {temp:20, charge:[], melted:false, refined:false, casted:false, ingot:null, animPhase:0, bubbles:[], sparks:[]};
+const $ = id => document.getElementById(id);
+const logBox = $("log");
+function log(msg, cls=""){
+  const t = new Date().toLocaleTimeString('ru-RU');
+  const d = document.createElement("div");
+  d.innerHTML = `<span class="t">[${t}]</span> <span class="${cls}">${msg}</span>`;
+  logBox.appendChild(d);
+  logBox.scrollTop = logBox.scrollHeight;
+}
+const metalBySym = s => METALS.find(m => m.sym === s);
+const clamp = v => v<0?0:v>255?255:v;
+
+/* ============================================================
+   5. ТЕКСТУРЫ
+   ============================================================ */
+function makeMetalTexture(metal, size=64){
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const g = c.getContext("2d");
+  const {base, hi, lo, pat, rough, grain, spec} = metal;
+  const grad = g.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, hi); grad.addColorStop(0.35, base);
+  grad.addColorStop(0.75, base); grad.addColorStop(1, lo);
+  g.fillStyle = grad; g.fillRect(0, 0, size, size);
+
+  const img = g.getImageData(0, 0, size, size);
+  const d = img.data;
+  const amp = 8 + grain * 26;
+  for (let i=0;i<d.length;i+=4){
+    const n = (Math.random()-0.5)*amp;
+    d[i]=clamp(d[i]+n); d[i+1]=clamp(d[i+1]+n); d[i+2]=clamp(d[i+2]+n);
+  }
+  g.putImageData(img, 0, 0);
+
+  g.globalAlpha = 0.12 + rough*0.22;
+  for (let i=0;i<40;i++){
+    const x = Math.random()*size, y = Math.random()*size;
+    const r = 1 + Math.random()*3;
+    g.fillStyle = Math.random() > 0.5 ? hi : lo;
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI*2); g.fill();
+  }
+  g.globalAlpha = 1;
+
+  g.globalAlpha = 0.16 + rough*0.18;
+  for (let i=0;i<12;i++){
+    const x = Math.random()*size, y = Math.random()*size;
+    const r = 3 + Math.random()*9;
+    const gg = g.createRadialGradient(x,y,0,x,y,r);
+    gg.addColorStop(0, pat); gg.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gg;
+    g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill();
+  }
+  g.globalAlpha = 1;
+
+  g.strokeStyle = "rgba(255,255,255,0.16)";
+  g.lineWidth = 0.5;
+  for (let i=0;i<8;i++){
+    g.beginPath();
+    const x1 = Math.random()*size, y1 = Math.random()*size;
+    const a = Math.random()*Math.PI*2;
+    const len = 6 + Math.random()*size*0.45;
+    g.moveTo(x1,y1);
+    g.lineTo(x1+Math.cos(a)*len, y1+Math.sin(a)*len);
+    g.stroke();
+  }
+
+  const hg = g.createRadialGradient(size*0.28, size*0.22, 1, size*0.28, size*0.22, size*0.55);
+  hg.addColorStop(0, `rgba(255,255,255,${0.5*spec})`);
+  hg.addColorStop(0.25, `rgba(255,255,255,${0.15*spec})`);
+  hg.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = hg; g.fillRect(0,0,size,size);
+
+  const eg = g.createRadialGradient(size/2,size/2,size*0.25,size/2,size/2,size*0.75);
+  eg.addColorStop(0, "rgba(0,0,0,0)");
+  eg.addColorStop(1, "rgba(0,0,0,0.4)");
+  g.fillStyle = eg; g.fillRect(0,0,size,size);
+  return c;
+}
+const texCache = new Map();
+function getMetalTexture(sym, size=64){
+  const key = sym + "@" + size;
+  if (!texCache.has(key)) texCache.set(key, makeMetalTexture(metalBySym(sym), size));
+  return texCache.get(key);
+}
+const texURL = new Map();
+function getMetalURL(sym, size=64){
+  const key = sym + "@" + size;
+  if (!texURL.has(key)) texURL.set(key, getMetalTexture(sym, size).toDataURL());
+  return texURL.get(key);
+}
+
+function makeAlloyTexture(comp, size=96){
+  const id = identifyAlloy(comp);
+  let baseColor;
+  if (id && id.color){ baseColor = id.color; }
+  else {
+    let r=0,g=0,b=0;
+    comp.forEach(c => {
+      const m = metalBySym(c.sym);
+      r += parseInt(m.base.slice(1,3),16) * c.pct/100;
+      g += parseInt(m.base.slice(3,5),16) * c.pct/100;
+      b += parseInt(m.base.slice(5,7),16) * c.pct/100;
+    });
+    baseColor = `rgb(${r|0},${g|0},${b|0})`;
+  }
+  const cvs = document.createElement("canvas");
+  cvs.width = cvs.height = size;
+  const g = cvs.getContext("2d");
+  let R,G,B;
+  if (baseColor.startsWith("rgb")){
+    const m = baseColor.match(/\d+/g); [R,G,B] = m.map(Number);
+  } else {
+    R = parseInt(baseColor.slice(1,3),16);
+    G = parseInt(baseColor.slice(3,5),16);
+    B = parseInt(baseColor.slice(5,7),16);
+  }
+  const hi = `rgb(${clamp(R+60)},${clamp(G+60)},${clamp(B+60)})`;
+  const lo = `rgb(${clamp(R-70)},${clamp(G-70)},${clamp(B-70)})`;
+  const grad = g.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, hi);
+  grad.addColorStop(0.35, `rgb(${R},${G},${B})`);
+  grad.addColorStop(0.8, `rgb(${clamp(R-30)},${clamp(G-30)},${clamp(B-30)})`);
+  grad.addColorStop(1, lo);
+  g.fillStyle = grad; g.fillRect(0, 0, size, size);
+
+  const img = g.getImageData(0, 0, size, size);
+  const d = img.data;
+  for (let i=0;i<d.length;i+=4){
+    const n = (Math.random()-0.5)*30;
+    d[i]=clamp(d[i]+n); d[i+1]=clamp(d[i+1]+n); d[i+2]=clamp(d[i+2]+n);
+  }
+  g.putImageData(img, 0, 0);
+
+  g.globalAlpha = 0.14;
+  for (let i=0;i<60;i++){
+    const x = Math.random()*size, y = Math.random()*size;
+    const r = 1.5 + Math.random()*5;
+    g.fillStyle = Math.random() > 0.5 ? hi : lo;
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI*2); g.fill();
+  }
+  g.globalAlpha = 1;
+
+  g.globalAlpha = 0.15;
+  for (let i=0;i<15;i++){
+    const x = Math.random()*size, y = Math.random()*size;
+    const r = 4 + Math.random()*10;
+    const gg = g.createRadialGradient(x,y,0,x,y,r);
+    gg.addColorStop(0, Math.random()>0.5 ? hi : lo);
+    gg.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gg;
+    g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill();
+  }
+  g.globalAlpha = 1;
+
+  g.strokeStyle = "rgba(255,255,255,0.18)"; g.lineWidth = 0.5;
+  for (let i=0;i<10;i++){
+    g.beginPath();
+    const x1 = Math.random()*size, y1 = Math.random()*size;
+    const a = Math.random()*Math.PI*2;
+    const len = 6 + Math.random()*size*0.5;
+    g.moveTo(x1,y1);
+    g.lineTo(x1+Math.cos(a)*len, y1+Math.sin(a)*len);
+    g.stroke();
+  }
+
+  const hg = g.createRadialGradient(size*0.28, size*0.22, 1, size*0.28, size*0.22, size*0.55);
+  hg.addColorStop(0, "rgba(255,255,255,0.55)");
+  hg.addColorStop(0.25, "rgba(255,255,255,0.16)");
+  hg.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = hg; g.fillRect(0,0,size,size);
+
+  const eg = g.createRadialGradient(size/2,size/2,size*0.25,size/2,size/2,size*0.75);
+  eg.addColorStop(0, "rgba(0,0,0,0)");
+  eg.addColorStop(1, "rgba(0,0,0,0.4)");
+  g.fillStyle = eg; g.fillRect(0,0,size,size);
+  return cvs;
+}
+
+function mixBaseColor(){
+  const comp = composition();
+  if (!comp.length) return {r:58,g:68,b:80};
+  let r=0,gg=0,b=0;
+  comp.forEach(c => {
+    const m = metalBySym(c.sym);
+    r += parseInt(m.base.slice(1,3),16) * c.pct/100;
+    gg += parseInt(m.base.slice(3,5),16) * c.pct/100;
+    b += parseInt(m.base.slice(5,7),16) * c.pct/100;
+  });
+  return {r:r|0,g:gg|0,b:b|0};
+}
+
+/* ============================================================
+   6. СПИСОК МЕТАЛЛОВ
+   ============================================================ */
+function renderMetals(){
+  const list = $("metalList");
+  list.innerHTML = "";
+  let lastCat = "";
+  METALS.forEach(m => {
+    if (m.cat !== lastCat){
+      lastCat = m.cat;
+      const h = document.createElement("div");
+      h.className = "cat-label";
+      h.textContent = m.cat;
+      list.appendChild(h);
+    }
+    const el = document.createElement("div");
+    el.className = "metal";
+    el.dataset.sym = m.sym;
+    el.innerHTML = `
+      <div class="thumb" style="background-image:url(${getMetalURL(m.sym,64)})"></div>
+      <div class="nm">${m.name}<small>${m.sym} · ρ ${m.rho}</small></div>
+      <div class="tm">${m.tm}°</div>`;
+    el.onclick = () => addToCharge(m.sym);
+    list.appendChild(el);
+  });
+}
+
+/* ============================================================
+   7. ШИХТА
+   ============================================================ */
+function addToCharge(sym, mass = 100){
+  if (S.casted){ log("Слиток уже отлит. Сбросьте печь.", "warn"); return; }
+  if (S.melted){ log("Расплав уже готов. Нельзя менять шихту.", "warn"); return; }
+
+  let v = parseMass(mass);
+  if (v === null || v <= 0){
+    log("Масса должна быть положительным числом или дробью.", "err");
+    return;
+  }
+  if (v > 100000){
+    log("Слишком большая масса (макс. 100 000 г).", "err");
+    return;
+  }
+  v = Math.round(v * 1000) / 1000;
+
+  const existing = S.charge.find(c => c.sym === sym);
+  if (existing) existing.mass += v;
+  else S.charge.push({sym, mass: v});
+
+  log(`Добавлено: ${metalBySym(sym).name} +${v} г`, "ok");
+  recalcAll();
+}
+function removeFromCharge(sym){
+  if (S.melted){ log("Нельзя убирать компонент из расплава.", "warn"); return; }
+  S.charge = S.charge.filter(c => c.sym !== sym);
+  recalcAll();
+}
+
+/* Парсер массы: "100", "2.5", "1/3", "2/7", "1 1/2" */
+function parseMass(str){
+  if (str === null || str === undefined) return null;
+  let s = String(str).trim().replace(",", ".").replace(/\s+/g, " ");
+  if (!s) return null;
+  // смешанная дробь "1 1/2"
+  let m = s.match(/^(-?\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+  if (m){
+    const whole = +m[1], num = +m[2], den = +m[3];
+    if (!den) return null;
+    return whole >= 0 ? whole + num/den : whole - num/den;
+  }
+  // простая дробь "1/3"
+  m = s.match(/^(-?\d+(?:\.\d+)?)\s*\/\s*(-?\d+(?:\.\d+)?)$/);
+  if (m){
+    const num = +m[1], den = +m[2];
+    if (!den) return null;
+    return num / den;
+  }
+  // обычное число
+  if (!/^-?\d+(?:\.\d+)?$/.test(s)) return null;
+  return +s;
+}
+function renderCharge(){
+  const box = $("chargeList");
+  if (!S.charge.length){
+    box.innerHTML = `<div class="empty">Тигель пуст</div>`;
+    return;
+  }
+  box.innerHTML = "";
+  const total = totalMass();
+  S.charge.forEach(c => {
+    const m = metalBySym(c.sym);
+    const el = document.createElement("div");
+    el.className = "charge-item";
+    const frac = total > 0 ? (c.mass / total) : 0;
+    el.innerHTML = `
+      <div class="thumb" style="background-image:url(${getMetalURL(c.sym,32)})"></div>
+      <span style="flex:1;min-width:0">
+        <b style="color:${m.hi}">${m.sym}</b> ${m.name}
+        <span class="frac">${frac ? (frac*100).toFixed(1)+"%" : ""}</span>
+      </span>
+      <input type="text" class="mass-input" inputmode="decimal"
+             value="${c.mass}" title="Масса: число или дробь (напр. 1/3, 2.5, 3/7)"
+             style="width:92px;padding:2px 4px;font-size:11px;background:#0b0e12;
+                    color:var(--text);border:1px solid var(--line);border-radius:5px;text-align:right">
+      <span style="font-size:10px;color:var(--muted)">г</span>
+      <span class="x" title="Убрать">✕</span>`;
+
+    const inp = el.querySelector(".mass-input");
+    inp.onchange = () => {
+      const v = parseMass(inp.value);
+      if (v === null || v <= 0){
+        log("Масса: введите число или дробь (например 1/3).", "err");
+        inp.classList.add("invalid");
+        inp.value = c.mass;
+        return;
+      }
+      if (v > 100000){
+        log("Масса ограничена 100 000 г.", "err");
+        inp.classList.add("invalid");
+        inp.value = c.mass;
+        return;
+      }
+      inp.classList.remove("invalid");
+      c.mass = Math.round(v * 1000) / 1000; // храним с точностью 0.001 г
+      log(`${m.name}: масса → ${c.mass} г`, "cool");
+      recalcAll();
+    };
+    inp.onclick = e => e.stopPropagation();
+    el.querySelector(".x").onclick = () => removeFromCharge(c.sym);
+    box.appendChild(el);
+  });
+}
+/* ============================================================
+   8. РАСЧЁТ
+   ============================================================ */
+function totalMass(){ return S.charge.reduce((a,c)=>a+c.mass,0); }
+function composition(){
+  const t = totalMass();
+  if (!t) return [];
+  return S.charge.map(c => ({...c, pct: c.mass / t * 100})).sort((a,b)=>b.pct-a.pct);
+}
+/* ============================================================
+   ФИЗИКА: ликвидус с эвтектическим провалом
+   ============================================================ */
+
+// Инвариантные точки для ключевых бинарных систем (T, °C)
+// liquid = состав жидкости в точке, wt%
+const INVARIANTS = {
+  "Cu-Zn": { T: 903, type: "peritectic", liquid: { Zn: 72 } },
+  "Cu-Sn": { T: 227, type: "eutectic", liquid: { Sn: 99 } },
+  "Al-Si": { T: 577, type: "eutectic", liquid: { Si: 12.5 } },
+  "Fe-C":  { T: 1147, type: "eutectic", liquid: { C: 4.3 } },
+  "Ti-Al": { T: 1460, type: "peritectic" },
+  "Ni-Cr": { T: 1345, type: "eutectic", liquid: { Cr: 47 } },
+  "W-Co":  { T: 1450, type: "eutectic", liquid: { Co: 40 } },
+};
+
+function alloyTm(){
+  const comp = composition();
+  if (!comp.length) return 20;
+
+  // 1. Средневзвешенная T плавления
+  let tw = 0;
+  comp.forEach(c => tw += metalBySym(c.sym).tm * c.pct / 100);
+
+  const n = comp.length;
+  if (n === 1) return tw;
+
+  // 2. Эвтектический провал: чем больше компонентов, тем ниже
+  //    (экспоненциальное насыщение, чтобы не уходить в минус)
+  const eutecticDrop = 0.30 * (1 - Math.exp(-(n - 1) * 1.0));
+
+  // 3. Проверка на известные бинарные инварианты
+  let floorT = 20;
+  for (const c of comp) {
+    if (c.pct < 5) continue;
+    const base = comp[0].sym;
+    const key1 = `${base}-${c.sym}`;
+    const key2 = `${c.sym}-${base}`;
+    const inv = INVARIANTS[key1] || INVARIANTS[key2];
+    if (inv) {
+      // Если состав близок к эвтектическому — температура не может быть выше T_эвт
+      if (inv.liquid) {
+        for (const [sym, target] of Object.entries(inv.liquid)) {
+          const actual = comp.find(x => x.sym === sym)?.pct || 0;
+          if (Math.abs(actual - target) < 15) {
+            floorT = Math.max(floorT, inv.T * 0.85);
+          }
+        }
+      }
+    }
+  }
+
+  // 4. Нижняя граница: не ниже самой легкоплавкой компоненты (но не ниже эвтектики)
+  const minTm = Math.min(...comp.map(c => metalBySym(c.sym).tm));
+  const lowerBound = Math.max(floorT, minTm * 0.4);
+
+  const tmCalc = tw * (1 - eutecticDrop);
+  return Math.max(20, Math.max(lowerBound, tmCalc));
+}
+
+
+/* ============================================================
+   ФИЗИКА: ликвация по Шейлю (Scheil-Gulliver)
+   ============================================================ */
+
+// Коэффициенты распределения k = C_s / C_l (приближённые, для ключевых элементов)
+const K_SCHEIL = {
+  C:  0.20, N:  0.30, O:  0.05,
+  Si: 0.50, Mn: 0.70, P:  0.10, S:  0.05,
+  Cr: 0.90, Ni: 0.80, Mo: 0.70, W:  0.60,
+  V:  0.70, Nb: 0.40, Ti: 0.30, Al: 0.60,
+  Cu: 0.50, Zn: 0.60, Sn: 0.30, Pb: 0.20,
+  Mg: 0.40, Fe: 0.70, Co: 0.80,
+};
+
+/* ============================================================
+   РАСШИРЕННЫЕ ФИЗИЧЕСКИЕ КОНСТАНТЫ
+   ============================================================ */
+
+// Модуль упругости E (ГПа), коэф. Пуассона ν, теплоёмкость Cp (Дж/кг·К),
+// теплопроводность λ (Вт/м·К), плотность ρ (г/см³), скрытая теплота L (кДж/кг)
+const PHYS = {
+  Al:{E:70, nu:0.33, Cp:900,  lam:237, rho:2.70, L:397,  T0:660},
+  Mg:{E:45, nu:0.29, Cp:1020, lam:156, rho:1.74, L:368,  T0:650},
+  Ti:{E:116,nu:0.32, Cp:523,  lam:22,  rho:4.51, L:295,  T0:1668},
+  Be:{E:287,nu:0.03, Cp:1825, lam:200, rho:1.85, L:1350, T0:1287},
+  Li:{E:4.9,nu:0.36, Cp:3582, lam:85,  rho:0.53, L:432,  T0:180},
+  Na:{E:10, nu:0.34, Cp:1230, lam:142, rho:0.97, L:113,  T0:98},
+  K: {E:3.5,nu:0.35, Cp:757,  lam:103, rho:0.86, L:59,   T0:63},
+  Ca:{E:20, nu:0.31, Cp:647,  lam:201, rho:1.55, L:213,  T0:842},
+
+  Fe:{E:211,nu:0.29, Cp:449,  lam:80,  rho:7.87, L:247,  T0:1538},
+  Cu:{E:130,nu:0.34, Cp:385,  lam:401, rho:8.96, L:205,  T0:1085},
+  Ni:{E:200,nu:0.31, Cp:444,  lam:91,  rho:8.90, L:297,  T0:1455},
+  Cr:{E:279,nu:0.21, Cp:449,  lam:94,  rho:7.19, L:404,  T0:1907},
+  Mn:{E:198,nu:0.28, Cp:479,  lam:7.8, rho:7.21, L:235,  T0:1246},
+  Co:{E:209,nu:0.31, Cp:421,  lam:100, rho:8.86, L:262,  T0:1495},
+  Zn:{E:105,nu:0.25, Cp:388,  lam:116, rho:7.14, L:112,  T0:420},
+  V: {E:128,nu:0.37, Cp:489,  lam:30.7,rho:6.11, L:330,  T0:1910},
+  Nb:{E:105,nu:0.40, Cp:265,  lam:53.7,rho:8.57, L:290,  T0:2477},
+  Mo:{E:329,nu:0.31, Cp:251,  lam:138, rho:10.28,L:290,  T0:2623},
+  W: {E:411,nu:0.28, Cp:134,  lam:173, rho:19.25,L:192,  T0:3422},
+  Ta:{E:186,nu:0.34, Cp:140,  lam:57.5,rho:16.65,L:174,  T0:3017},
+  Zr:{E:68, nu:0.34, Cp:278,  lam:22.7,rho:6.52, L:207,  T0:1855},
+  Hf:{E:78, nu:0.37, Cp:144,  lam:23,  rho:13.31,L:230,  T0:2233},
+  Re:{E:463,nu:0.30, Cp:137,  lam:48,  rho:21.02,L:180,  T0:3186},
+  Os:{E:550,nu:0.25, Cp:130,  lam:87,  rho:22.59,L:310,  T0:3033},
+  Ir:{E:528,nu:0.26, Cp:131,  lam:147, rho:22.56,L:270,  T0:2466},
+  Pt:{E:168,nu:0.38, Cp:133,  lam:71.6,rho:21.45,L:113,  T0:1768},
+  Pd:{E:121,nu:0.39, Cp:244,  lam:71.8,rho:12.02,L:167,  T0:1555},
+  Rh:{E:380,nu:0.26, Cp:243,  lam:150, rho:12.41,L:210,  T0:1964},
+  Ru:{E:447,nu:0.30, Cp:238,  lam:117, rho:12.37,L:250,  T0:2334},
+  Ag:{E:83, nu:0.37, Cp:235,  lam:429, rho:10.49,L:105,  T0:962},
+  Au:{E:78, nu:0.44, Cp:129,  lam:318, rho:19.30,L:64,   T0:1064},
+  Cd:{E:50, nu:0.30, Cp:232,  lam:96.6,rho:8.65, L:54,   T0:321},
+  Sc:{E:74, nu:0.28, Cp:567,  lam:15.8,rho:2.99, L:310,  T0:1541},
+  Y: {E:64, nu:0.24, Cp:298,  lam:17.2,rho:4.47, L:190,  T0:1526},
+  Th:{E:79, nu:0.27, Cp:113,  lam:54,  rho:11.72,L:82,   T0:1750},
+  U: {E:208,nu:0.23, Cp:116,  lam:27.6,rho:19.10,L:84,   T0:1132},
+  Ce:{E:34, nu:0.24, Cp:192,  lam:11.4,rho:6.77, L:55,   T0:795},
+  La:{E:37, nu:0.28, Cp:195,  lam:13.4,rho:6.15, L:65,   T0:918},
+  Nd:{E:41, nu:0.28, Cp:190,  lam:16.5,rho:7.01, L:71,   T0:1024},
+  Gd:{E:55, nu:0.26, Cp:236,  lam:10.6,rho:7.90, L:100,  T0:1312},
+  Sn:{E:50, nu:0.36, Cp:228,  lam:66.8,rho:7.31, L:60,   T0:232},
+  Pb:{E:16, nu:0.44, Cp:129,  lam:35.3,rho:11.34,L:23,   T0:327},
+  Bi:{E:32, nu:0.33, Cp:122,  lam:7.9, rho:9.78, L:52,   T0:271},
+  Sb:{E:55, nu:0.30, Cp:207,  lam:24.4,rho:6.68, L:165,  T0:631},
+  Ga:{E:9.8,nu:0.47, Cp:371,  lam:40.6,rho:5.91, L:80,   T0:30},
+  In:{E:11, nu:0.45, Cp:233,  lam:81.8,rho:7.31, L:28,   T0:157},
+  Tl:{E:8,  nu:0.45, Cp:129,  lam:46.1,rho:11.85,L:21,   T0:304},
+  Ge:{E:79, nu:0.26, Cp:322,  lam:59.9,rho:5.32, L:465,  T0:938},
+  Hg:{E:4.5,nu:0.45, Cp:140,  lam:8.3, rho:13.53,L:11,   T0:-39},
+  Se:{E:58, nu:0.33, Cp:321,  lam:2.04,rho:4.81, L:68,   T0:221},
+};
+
+// Коэффициенты Нордгейма для оценки Tпл интерметаллида
+// T_IM = (T_A + T_B)/2 + K * sqrt(c_A * c_B) - ΔH_form
+// Используем упрощённо: K_NORDHEIM ~ 0.1..0.5 К
+const NORDHEIM_K = 0.35;
+
+// Аррениус: энергия активации диффузии Q (кДж/моль), предэкспонента D0 (м²/с)
+const DIFF = {
+  Fe:{Q:250, D0:1.0e-4}, Ni:{Q:270, D0:1.9e-4}, Cu:{Q:210, D0:3.0e-5},
+  Al:{Q:130, D0:1.7e-5}, Cr:{Q:290, D0:3.0e-4}, Mo:{Q:380, D0:1.0e-4},
+  W:{Q:480, D0:1.0e-4},  Ti:{Q:220, D0:1.0e-4}, C:{Q:80,  D0:2.0e-6},
+  N:{Q:76,  D0:6.0e-7},  B:{Q:90,  D0:1.0e-7}, Si:{Q:200, D0:1.0e-4},
+  Co:{Q:280, D0:1.0e-4}, Zn:{Q:100, D0:1.0e-5}, Mg:{Q:130, D0:1.0e-5},
+  default:{Q:250, D0:1.0e-4}
+};
+const R_GAS = 8.314; // Дж/(моль·К)
+
+// Гиббс для реакций раскисления (упрощённо, на 1 моль O):
+// 2xMe + yO -> Me_x O_y ; ΔG° ≈ A + B·T (кДж/моль O)
+const DEOX_REACTIONS = {
+  Al:{A:-1240, B:0.36, name:"Al₂O₃"},   // очень сильный
+  Si:{A:-580,  B:0.18, name:"SiO₂"},
+  Ti:{A:-900,  B:0.28, name:"TiO₂"},
+  Mn:{A:-350,  B:0.14, name:"MnO"},
+  C: {A:-120,  B:0.12, name:"CO"},
+  Cr:{A:-500,  B:0.20, name:"Cr₂O₃"},
+  V: {A:-800,  B:0.25, name:"V₂O₃"},
+  Ca:{A:-1400, B:0.40, name:"CaO"},
+  Mg:{A:-1100, B:0.35, name:"MgO"},
+};
+
+function scheilProfile(comp, steps = 25) {
+  if (!comp.length) return [];
+  const profile = [];
+  for (let i = 0; i <= steps; i++) {
+    const fs = i / steps;  // доля твёрдой фазы
+    const solid = comp.map(c => {
+      const k = K_SCHEIL[c.sym] ?? 0.7;
+      // Scheil: C_s = k * C_0 * (1 - fs)^(k-1)
+      const pct = c.pct * k * Math.pow(Math.max(0.01, 1 - fs), k - 1);
+      return { sym: c.sym, pct: Math.min(100, pct) };
+    });
+    // Нормируем на 100%
+    const sum = solid.reduce((a, x) => a + x.pct, 0);
+    if (sum > 0) solid.forEach(x => x.pct = x.pct / sum * 100);
+    profile.push({ fs, solid });
+  }
+  return profile;
+}
+/* ============================================================
+   ДИАГРАММА Fe-C (упрощённая)
+   ============================================================ */
+const FE_C = {
+  // ключевые точки на диаграмме Fe-Fe3C
+  Tm_Fe: 1538,
+  T_peritectic: 1493,   // 0.16%C
+  T_eutectic: 1147,     // 4.3%C — ледебурит
+  T_eutectoid: 727,     // 0.8%C — перлит (A1)
+  T_Ac3: 912,           // для 0%C — α→γ
+  T_Acm: 1147,          // для 2.14%C
+  C_eutectoid: 0.8,
+  C_max_sol: 2.14,      // предел растворимости C в аустените
+  C_eutectic: 4.3,
+};
+
+// Температура A3 (начало γ→α) по составу C
+function Ac3(C){
+  // линейная аппроксимация от 912 (0%C) до 727 (0.8%C)
+  return 912 - (912 - 727) * (C / 0.8);
+}
+// A1 — эвтектоид (727°C)
+function A1(){ return 727; }
+// Acm — линия цементита
+function Acm(C){
+  // от 727 при 0.8%C до 1147 при 2.14%C
+  return 727 + (1147 - 727) * ((C - 0.8) / (2.14 - 0.8));
+}
+// Ликвидус Fe-C
+function FeC_liquidus(C){
+  if (C <= 4.3) return 1538 - (1538 - 1147) * (C / 4.3);
+  return 1147 + (1538 - 1147) * ((C - 4.3) / (6.67 - 4.3));
+}
+// Солидус Fe-C
+function FeC_solidus(C){
+  if (C <= 2.14) return 1538 - (1538 - 1147) * (C / 2.14);
+  return 1147;
+}
+// Определяем фазовый состав для стали по C и T
+function feC_phases(C_pct, T_C){
+  const C = Math.max(0, Math.min(6.67, C_pct));
+  const out = {phases:[], T:T_C, C};
+  const Tl = FeC_liquidus(C);
+  const Ts = FeC_solidus(C);
+  if (T_C >= Tl){ out.phases.push("Жидкость"); return out; }
+  if (T_C >= Ts){
+    out.phases.push("Жидкость + Аустенит");
+    return out;
+  }
+  if (C < 0.02){
+    if (T_C < 912) out.phases.push("Феррит");
+    else out.phases.push("Аустенит");
+    return out;
+  }
+  if (C < 0.8){
+    if (T_C >= Ac3(C)) out.phases.push("Аустенит");
+    else if (T_C >= A1()){
+      const fA = (T_C - A1()) / (Ac3(C) - A1());
+      out.phases.push("Феррит + Аустенит", `f_A≈${(fA*100).toFixed(0)}%`);
+    } else {
+      // ниже A1 — феррит + перлит
+      const fP = C / 0.8 * 100;
+      out.phases.push(`Феррит + Перлит`, `Перлит≈${fP.toFixed(0)}%`);
+    }
+    return out;
+  }
+  if (C <= 2.14){
+    if (T_C >= Acm(C)) out.phases.push("Аустенит");
+    else if (T_C >= A1()) out.phases.push("Аустенит + Цементит");
+    else out.phases.push("Перлит + Цементит");
+    return out;
+  }
+  // чугуны
+  if (T_C >= 1147) out.phases.push("Жидкость + Аустенит");
+  else if (T_C >= 727) out.phases.push("Аустенит + Ледебурит");
+  else out.phases.push("Перлит + Ледебурит");
+  return out;
+}
+
+
+/* ============================================================
+   ПРИБЫЛИ И ЛИТНИКОВАЯ СИСТЕМА
+   ============================================================ */
+function riserDesign(mass_g, modul = "sphere"){
+  const sh = shrinkage();
+  const volCav = shrinkageCavity(mass_g, sh.vol);
+  // Модуль охлаждения M = V/A
+  // Для отливки массой m (ρ≈8) — сфера/цилиндр/плита
+  const rho = 8e-3; // кг/см³ -> 8 г/см³
+  const V = mass_g / 8; // см³
+  let M;
+  if (modul === "sphere"){
+    const r = Math.cbrt(3*V/(4*Math.PI));
+    M = r / 3;
+  } else if (modul === "cylinder"){
+    const r = Math.cbrt(V / (Math.PI * 2)); // H=2r
+    M = (r * 2) / 6; // V/A для цилиндра H=2R
+  } else {
+    M = V / (2 * Math.sqrt(V)); // грубо
+  }
+  // Прибыль: диаметр ~2.5..3 M, высота ~1.5 D
+  const D = Math.max(2, M * 6);
+  const Hr = D * 1.5;
+  const volRiser = Math.PI * (D/2)**2 * Hr;
+  return {M:+M.toFixed(2), D:+D.toFixed(2), H:+Hr.toFixed(2),
+          volCavity:+volCav.toFixed(2), volRiser:+volRiser.toFixed(2)};
+}
+
+/* ============================================================
+   ПРАВИЛО ЛЕ ШАТЕЛЬЕ
+   Влияние T на растворимость: растворимость обычно растёт с T
+   (для большинства металлов). Проверяем по справочным данным.
+   ============================================================ */
+// Приближённая растворимость элемента в основе в зависимости от T
+// S(T) = S0 * exp(-ΔH/(R*T))
+function solubility(symBase, symSol, T_C, S0 = 1.0, dH = 20){
+  const T_K = T_C + 273.15;
+  return S0 * Math.exp(-dH*1000/(R_GAS*T_K));
+}
+// Ле Шателье: сдвиг равновесия при изменении T
+function leChatelier(tempDir){
+  // tempDir: +1 нагрев, -1 охлаждение
+  return tempDir > 0
+    ? "Нагрев → равновесие смещается в сторону эндотермической реакции (плавление, растворение)"
+    : "Охлаждение → равновесие смещается в сторону экзотермической реакции (кристаллизация, выделение фаз)";
+}
+
+
+/* ============================================================
+   ЭКСПОРТ ОТЧЁТА
+   ============================================================ */
+function buildReport(){
+  const comp = composition();
+  const id = identifyAlloy(comp);
+  const p = alloyProps();
+  const tp = alloyThermophys();
+  const mag = magneticProps();
+  const sh = shrinkage();
+  const riser = p ? riserDesign(p.mass) : null;
+  return {
+    timestamp: new Date().toISOString(),
+    state: {
+      temp: S.temp, melted: S.melted, refined: S.refined, casted: S.casted,
+      totalMass: totalMass(),
+    },
+    composition: comp,
+    alloy: id,
+    props: p,
+    thermophys: tp,
+    magnetic: mag,
+    shrinkage: sh,
+    riser,
+    phases: currentPhases(),
+    gibbs: gibbsFreedom(comp.length, currentPhases()),
+    intermetallics: intermetallics().slice(0, 10),
+    deoxidation: deoxidation(S.temp || 1600).slice(0, 5),
+  };
+}
+function exportJSON(){
+  const data = buildReport();
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+  downloadBlob(blob, `splaviy-report-${Date.now()}.json`);
+  log("Отчёт JSON сохранён.", "cool");
+}
+function exportCSV(){
+  const rows = [["Параметр","Значение"]];
+  const rep = buildReport();
+  rows.push(["Температура, °C", rep.state.temp]);
+  rows.push(["Масса, г", rep.state.totalMass]);
+  if (rep.alloy){
+    rows.push(["Название", rep.alloy.name]);
+    rows.push(["Тип", rep.alloy.cat]);
+  }
+  if (rep.props){
+    Object.entries(rep.props).forEach(([k,v]) => {
+      if (v && typeof v === "object") rows.push([k, JSON.stringify(v)]);
+      else rows.push([k, v]);
+    });
+  }
+  rep.composition.forEach(c => rows.push([`Состав ${c.sym}, %`, c.pct.toFixed(3)]));
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv"});
+  downloadBlob(blob, `splaviy-report-${Date.now()}.csv`);
+  log("Отчёт CSV сохранён.", "cool");
+}
+function downloadBlob(blob, name){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+
+/* ============================================================
+   ВАЛИДАЦИЯ СОСТАВА
+   ============================================================ */
+function validateComposition(){
+  const comp = composition();
+  const warns = [];
+  if (!comp.length){ warns.push("Тигель пуст."); return warns; }
+  const sum = comp.reduce((a,c)=>a+c.pct,0);
+  if (Math.abs(sum - 100) > 0.5) warns.push(`Сумма процентов = ${sum.toFixed(2)}% (должна быть 100%).`);
+  if (comp.length === 1) warns.push("Чистый металл — сплав не образуется.");
+  // проверка физических пределов растворимости
+  const base = comp[0].sym;
+  comp.forEach(c => {
+    if (c.sym === base) return;
+    if (c.pct > 50) warns.push(`${c.sym} ${c.pct.toFixed(1)}% — очень высокая концентрация (возможна нерастворимость).`);
+    if (c.pct < 0.01) warns.push(`${c.sym} ${c.pct.toFixed(4)}% — следы, вклад в свойства мал.`);
+  });
+  // проверка на хрупкость
+  const p = alloyProps();
+  if (p && p.ductility < 3) warns.push("Пластичность < 3% — высокий риск хрупкого разрушения.");
+  if (p && p.hardness > 90) warns.push("Твёрдость > 90 HV — вероятно, инструментальный/хрупкий сплав.");
+  // интерметаллиды
+  const im = intermetallics();
+  if (im.length && im[0].tm > alloyTm() * 1.2)
+    warns.push(`Возможен интерметаллид ${im[0].A}-${im[0].B} с Tпл≈${im[0].tm}°C выше ликвидуса сплава.`);
+  return warns;
+}
+// Краткая сводка ликвации: насколько обогащается остаточный расплав
+function segregationSummary(comp) {
+  if (!comp.length) return null;
+  const prof = scheilProfile(comp, 10);
+  const last = prof[prof.length - 1].solid;
+  const enriched = last
+    .map(x => {
+      const orig = comp.find(c => c.sym === x.sym)?.pct || 0;
+      return { sym: x.sym, orig, final: x.pct, ratio: orig > 0 ? x.pct / orig : 1 };
+    })
+    .filter(x => x.ratio > 1.5)
+    .sort((a, b) => b.ratio - a.ratio);
+  return { profile: prof, enriched };
+}
+
+
+function alloyDensity(){
+  const comp = composition();
+  if (!comp.length) return 0;
+  let inv = 0;
+  comp.forEach(c => inv += (c.pct/100) / metalBySym(c.sym).rho);
+  return 1/inv;
+}/* ============================================================
+   ФИЗИКА: свойства через аддитивную модель упрочнения
+   ============================================================ */
+
+// Коэффициенты твёрдорастворного упрочнения a_i (МПа / (wt%)^0.5)
+// Для никелевых сплавов — из литературы, для остальных — приближённые
+const SS_COEFF = {
+  // Ni-сплавы (сильные упрочнители)
+  Al: 225, Ti: 775, Cr: 337, Mo: 1015, Fe: 153, Mn: 448, Si: 275,
+  Nb: 600, Ta: 500, W: 800, Co: 100, Cu: 80,
+  // Fe-сплавы (C через карбиды — отдельно)
+  C:  1200, // эффективный, через перлит/карбиды
+  // Al-сплавы
+  Mg: 120, Zn: 80, Cu: 100,
+  // Общие
+  default: 100,
+};
+
+// σ_0 — сопротивление решётки (МПа), грубо по основе
+const SIGMA0 = { Fe: 70, Ni: 60, Cu: 40, Al: 30, Ti: 50, Co: 70, Mg: 25, default: 50 };
+
+// k_H — коэффициент Холла-Петча (МПа·√μm)
+const KH = { Fe: 600, Ni: 400, Cu: 300, Al: 200, Ti: 350, Co: 450, Mg: 250, default: 350 };
+
+function alloyProps(){
+  const comp = composition();
+  if (!comp.length) return null;
+
+  const tm = alloyTm();
+  const rho = alloyDensity();
+  const n = comp.length;
+  const base = comp[0].sym;
+
+  // ---- 1. Твёрдый раствор: Σ a_i * c_i^0.5 ----
+  let sigmaSS = 0;
+  comp.forEach(c => {
+    if (c.sym === base) return;
+    const a = SS_COEFF[c.sym] ?? SS_COEFF.default;
+    sigmaSS += a * Math.sqrt(c.pct);
+  });
+
+  // ---- 2. Зерно: Холл-Петч, k_H / sqrt(d) ----
+  // Оценка размера зерна из температуры разливки (перегрев → крупное зерно)
+  // d в μm: чем выше перегрев над ликвидусом, тем крупнее
+  const superheat = Math.max(0, S.temp - tm);
+  const dGrain = Math.max(15, 50 + superheat * 0.8);  // 15–300 μm
+  const kH = KH[base] ?? KH.default;
+  const sigmaGrain = kH / Math.sqrt(dGrain);
+
+  // ---- 3. Итоговая прочность ----
+  const sigma0 = SIGMA0[base] ?? SIGMA0.default;
+  const sigmaY = Math.round(sigma0 + sigmaSS + sigmaGrain);
+
+  // ---- 4. Твёрдость: HV ≈ σ_y / 3.3 (для сталей; грубо для остальных) ----
+  const hardness = Math.round(sigmaY / 3.3);
+
+  // ---- 5. Пластичность: обратно связана с прочностью ----
+  const ductility = Math.max(1, Math.min(80, Math.round(70 - sigmaY * 0.08)));
+
+  // ---- 6. PREN для сталей/никелевых ----
+  const cr = comp.find(c => c.sym === "Cr")?.pct || 0;
+  const mo = comp.find(c => c.sym === "Mo")?.pct || 0;
+  const w  = comp.find(c => c.sym === "W")?.pct || 0;
+  const nn = comp.find(c => c.sym === "N")?.pct || 0;  // если добавите N
+  let corrosion;
+  if (base === "Fe" || base === "Ni") {
+    // PREN = Cr + 3.3(Mo + 0.5W) + 16N (для сталей/Ni-сплавов, N обычно мал)
+    const pren = cr + 3.3 * (mo + 0.5 * w) + 16 * nn;
+    corrosion = Math.max(0, Math.min(100, Math.round(pren * 1.2)));
+  } else {
+    // Для цветных — грубая оценка по легирующим
+    const passivating = cr + (comp.find(c => c.sym === "Al")?.pct || 0) * 0.5
+                          + (comp.find(c => c.sym === "Ti")?.pct || 0) * 0.8;
+    corrosion = Math.max(5, Math.min(95, Math.round(30 + passivating * 1.5)));
+  }
+
+  // ---- 7. Электропроводность (оставляем как было) ----
+  const conductivity = Math.round(comp.reduce((a,c)=>{
+    const b = {Cu:100, Ag:105, Au:70, Al:62, Fe:17, Ni:14, Ti:2, W:30, Mo:35}[c.sym] ?? 20;
+    return a + b * c.pct/100;
+  },0));
+
+  // ---- 8. Ликвация ----
+  const seg = segregationSummary(comp);
+
+  return {
+    tm: Math.round(tm), rho: +rho.toFixed(2),
+    hardness: Math.max(5, Math.min(100, hardness)),
+    strength: Math.max(50, sigmaY),
+    ductility: Math.max(1, Math.min(100, ductility)),
+    corrosion: Math.max(0, Math.min(100, corrosion)),
+    conductivity: Math.max(1, Math.min(105, conductivity)),
+    components: n, mass: totalMass(),
+    grainSize: Math.round(dGrain),
+    pren: (base === "Fe" || base === "Ni") ? Math.round(cr + 3.3*(mo + 0.5*w) + 16*nn) : null,
+    segregation: seg,
+  };
+}
+/* ============================================================
+   9. ПАНЕЛИ
+   ============================================================ */
+function renderComposition(){
+  const box = $("compList");
+  const comp = composition();
+  if (!comp.length){ box.innerHTML = `<div class="empty">Нет данных</div>`; return; }
+  box.innerHTML = "";
+  comp.forEach(c => {
+    const m = metalBySym(c.sym);
+    const row = document.createElement("div");
+    row.className = "comp-row";
+    row.innerHTML = `
+      <div class="lbl"><span><b style="color:${m.hi}">${c.sym}</b> ${m.name}</span><span style="color:var(--muted)">${c.pct.toFixed(1)}%</span></div>
+      <div class="bar"><i style="width:${c.pct}%;background:linear-gradient(90deg,${m.lo},${m.base},${m.hi})"></i></div>`;
+    box.appendChild(row);
+  });
+}
+function renderProps(){
+  const box = $("propList");
+  const comp = composition();
+  const id = identifyAlloy(comp);
+  const p = S.ingot ? S.ingot.props : alloyProps();
+  if (!p){ box.innerHTML = `<div class="empty">—</div>`; return; }
+  const rows = [];
+  if (id) rows.push(["Название", id.name, "name-prop"]);
+  if (id && id.cat) rows.push(["Тип", id.cat]);
+  rows.push(
+    ["Масса", p.mass + " г"],
+    ["Компонентов", p.components],
+    ["T ликвидуса", p.tm + " °C"],
+    ["Плотность", p.rho + " г/см³"],
+    ["Зерно (оценка)", p.grainSize + " мкм"],
+    ["Твёрдость", p.hardness + " HV"],
+    ["Прочность σ_y", p.strength + " МПа"],
+    ["Пластичность", p.ductility + " %"],
+  );
+  if (p.pren !== null && p.pren !== undefined) {
+    rows.push(["PREN", p.pren + (p.pren >= 40 ? " (высокий)" : p.pren >= 25 ? " (средний)" : " (низкий)")]);
+  }
+  rows.push(["Корроз. стойкость", p.corrosion + " %"]);
+  rows.push(["Электропров.", p.conductivity + " %IACS"]);
+
+  let html = rows.map(([k,v,cls]) => `<div class="prop ${cls||''}"><span>${k}</span><span>${v}</span></div>`).join("");
+
+  // Ликвация: полоска обогащения
+  if (p.segregation && p.segregation.enriched.length) {
+    html += `<div style="margin-top:8px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Ликвация (остаточный расплав)</div>`;
+    p.segregation.enriched.slice(0, 4).forEach(e => {
+      const m = metalBySym(e.sym);
+      if (!m) return;
+      html += `<div class="prop"><span><b style="color:${m.hi}">${e.sym}</b></span><span style="color:var(--accent2)">×${e.ratio.toFixed(1)}</span></div>`;
+    });
+  }
+
+  box.innerHTML = html;
+}
+
+function renderAdvanced(){
+  const box = $("advList");
+  const comp = composition();
+  if (!comp.length){ box.innerHTML = `<div class="empty">—</div>`; return; }
+  const p = alloyProps();
+  const tp = alloyThermophys();
+  const mag = magneticProps();
+  const sh = shrinkage();
+  const riser = p ? riserDesign(p.mass) : null;
+  const gibbs = gibbsFreedom(comp.length, currentPhases());
+  const im = intermetallics().slice(0, 4);
+  const deox = deoxidation(1600).slice(0, 4);
+  const warns = validateComposition();
+
+  const row = (k,v) => `<div class="adv-row"><span>${k}</span><span>${v}</span></div>`;
+  let html = "";
+
+  html += `<div class="adv-title">Термофизика</div>`;
+  html += row("Модуль E", tp.E.toFixed(1) + " ГПа");
+  html += row("Коэф. Пуассона", tp.nu.toFixed(3));
+  html += row("Теплоёмкость Cp", Math.round(tp.Cp) + " Дж/кг·К");
+  html += row("Теплопроводность λ", tp.lam.toFixed(1) + " Вт/м·К");
+  html += row("Температуропроводность a", tp.a.toFixed(2) + " мм²/с");
+  html += row("Скрытая теплота L", Math.round(tp.L) + " кДж/кг");
+
+  html += `<div class="adv-title">Магнитные (Кубо-Хонда)</div>`;
+  if (mag && mag.ferro){
+    html += row("Ферромагнитен", "да");
+    html += row("Ms", mag.Ms + " Тл");
+    html += row("Tc", mag.Tc + " K");
+  } else html += row("Ферромагнитен", "нет");
+
+  html += `<div class="adv-title">Усадка и прибыль</div>`;
+  html += row("Объёмная усадка", sh.vol.toFixed(2) + " %");
+  html += row("Линейная усадка", sh.lin.toFixed(2) + " %");
+  if (riser){
+    html += row("Модуль M", riser.M + " см");
+    html += row("Прибыль D×H", riser.D + "×" + riser.H + " см");
+    html += row("Раковина", riser.volCavity + " см³");
+  }
+
+  html += `<div class="adv-title">Термодинамика</div>`;
+  html += row("Число фаз P", currentPhases());
+  html += row("Степеней свободы F", gibbs);
+  if (deox.length){
+    html += row("Сильнейший раскислитель", deox[0].sym + " (ΔG=" + deox[0].dG.toFixed(0) + ")");
+  }
+  if (im.length){
+    html += row("Интерметаллид", im[0].A + "-" + im[0].B + " Tпл≈" + im[0].tm + "°C");
+  }
+  if (warns.length){
+    html += `<div class="adv-title" style="color:var(--accent2)">Предупреждения</div>`;
+    warns.forEach(w => html += `<div class="adv-row"><span style="color:var(--accent2)">⚠</span><span style="font-size:10px">${w}</span></div>`);
+  }
+  box.innerHTML = html;
+}
+/* ============================================================
+   10. КАРТОЧКА РЕЗУЛЬТАТА
+   ============================================================ */
+function updateResultCard(){
+  const comp = composition();
+  const card = $("resultCard");
+  const shouldShow = comp.length > 0 && (S.melted || S.casted);
+  if (!shouldShow){ card.classList.add("hidden"); return; }
+  card.classList.remove("hidden");
+  const id = identifyAlloy(comp);
+  const p = S.ingot ? S.ingot.props : alloyProps();
+  const tex = makeAlloyTexture(comp, 96);
+  $("resPreview").style.backgroundImage = `url(${tex.toDataURL()})`;
+  $("resName").textContent = id.name;
+  $("resSub").textContent = `${id.cat} · ${S.casted ? "слиток" : "расплав"}`;
+  $("resTm").textContent = `${p.tm} °C`;
+}
+
+/* ============================================================
+   11. HUD
+   ============================================================ */
+function phaseName(){
+  if (!S.charge.length) return "—";
+  if (S.casted) return "Слиток";
+  if (S.melted) return "Расплав";
+  if (S.temp >= alloyTm()) return "Плавление";
+  if (S.temp > alloyTm()*0.5) return "Нагрев";
+  return "Твёрдое";
+}
+function updateHud(){
+  $("hTemp").textContent = Math.round(S.temp) + " °C";
+  $("hMass").textContent = totalMass() + " г";
+  $("hPhase").textContent = phaseName();
+  $("tempBig").textContent = Math.round(S.temp);
+  $("phaseBig").textContent = phaseName();
+  $("heatVal").textContent = Math.round(S.temp) + "°C";
+  $("heat").value = Math.round(S.temp);
+  let sub = "холодная";
+  if (S.temp > 1000) sub = "высокая";
+  if (S.temp > 2000) sub = "очень высокая";
+  if (S.temp > 3000) sub = "экстремальная";
+  $("tempSub").textContent = sub;
+  const p = alloyProps();
+  $("phaseSub").textContent = p ? `Tпл ≈ ${p.tm} °C` : "тигель пуст";
+}
+function recalcAll(){
+  renderCharge(); renderComposition(); renderProps();
+  renderAdvanced();
+  updateHud(); updateResultCard(); draw();
+}
+function recalcPhase(){
+  if (!S.charge.length){ S.melted = false; return; }
+  const tm = alloyTm();
+  if (S.temp >= tm) S.melted = true;
+  if (S.temp < tm - 20) S.melted = false;
+}
+
+/* ============================================================
+   12. ДЕЙСТВИЯ
+   ============================================================ */
+$("heat").oninput = e => {
+  if (S.casted){ e.target.value = S.temp; return; }
+  S.temp = +e.target.value; recalcPhase(); updateHud(); updateResultCard(); draw();
+};
+$("btnMelt").onclick = () => {
+  if (!S.charge.length){ log("Тигель пуст.", "err"); return; }
+  if (S.casted){ log("Слиток уже отлит.", "warn"); return; }
+  S.temp = Math.round(alloyTm() + 80); recalcPhase();
+  const comp = composition();
+  const id = identifyAlloy(comp);
+  log(`Нагрев до ${S.temp} °C. Получен расплав: ${id.name}.`, "ok");
+  updateHud(); updateResultCard(); draw();
+};
+$("btnHeatTreat").onclick = () => {
+  if (!S.charge.length){ log("Сначала задайте состав.", "err"); return; }
+  const mode = prompt("Режим: quench / temper / normalize / age", "temper");
+  if (!mode) return;
+  const T = parseFloat(prompt("Температура, °C:", "500"));
+  const t = parseFloat(prompt("Время, мин:", "60"));
+  if (isNaN(T) || isNaN(t)){ log("Некорректные T/t.", "err"); return; }
+  const res = heatTreatment(mode, T, t);
+  const box = $("advList");
+  const html = res.map(r => `<div class="adv-row"><span>${r.step}</span><span>T=${r.T}°C, H=${r.H} HV</span></div>`).join("");
+  box.innerHTML = `<div class="adv-title">Термообработка</div>` + html;
+  log(`Термообработка [${mode}] завершена.`, "ok");
+};
+$("btnRefine").onclick = () => {
+  if (!S.melted){ log("Сначала расплавьте шихту.", "err"); return; }
+  if (S.refined){ log("Расплав уже рафинирован.", "warn"); return; }
+  S.refined = true;
+  log("Рафинирование: удалены газы и включения.", "cool");
+  draw();
+};
+$("btnCast").onclick = () => {
+  if (!S.melted){ log("Нечего разливать.", "err"); return; }
+  if (S.casted){ log("Слиток уже отлит.", "warn"); return; }
+  const props = alloyProps();
+  const comp = composition();
+  const id = identifyAlloy(comp);
+  S.ingot = {comp, props, name:id.name};
+  S.casted = true; S.melted = false; S.temp = 20; S.bubbles = [];
+  log(`Разливка завершена. Получен ${id.name}, масса ${props.mass} г.`, "ok");
+  if (!S.refined) log("Внимание: без рафинирования — возможны включения.", "warn");
+  updateHud(); renderProps(); updateResultCard(); draw();
+};
+$("btnReset").onclick = () => {
+  S.temp = 20; S.charge = []; S.melted = false; S.refined = false;
+  S.casted = false; S.ingot = null; S.bubbles = []; S.sparks = [];
+  log("Печь сброшена.", "cool");
+  recalcAll();
+};
+$("btnExportJSON").onclick = exportJSON;
+$("btnExportCSV").onclick  = exportCSV;
+$("btnValidate").onclick   = () => {
+  const w = validateComposition();
+  if (!w.length) log("Состав корректен.", "ok");
+  else w.forEach(x => log("⚠ " + x, "warn"));
+};
+/* ============================================================
+   13. CANVAS
+   ============================================================ */
+const cv = $("cv");
+const ctx = cv.getContext("2d");
+let W = 0, H = 0;
+function resize(){
+  const r = cv.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = Math.max(1, r.width * dpr);
+  cv.height = Math.max(1, r.height * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  W = r.width; H = r.height;
+}
+window.addEventListener("resize", () => { resize(); draw(); });
+
+const rgb = (r,g,b,a=1) => `rgba(${r|0},${g|0},${b|0},${a})`;
+
+function draw(){
+  if (!W || !H) return;
+  ctx.clearRect(0,0,W,H);
+
+  const bg = ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,"#1a222c"); bg.addColorStop(1,"#080b0f");
+  ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
+
+  ctx.strokeStyle = "#232c36"; ctx.lineWidth = 2;
+  for (let i=0;i<4;i++){
+    ctx.beginPath();
+    ctx.moveTo(0, H*0.18 + i*H*0.2);
+    ctx.lineTo(W, H*0.13 + i*H*0.21);
+    ctx.stroke();
+  }
+
+  const cx = W/2;
+  const cy = H*0.54;
+  const tw = Math.min(W*0.55, H*0.8);
+  const th = Math.min(H*0.55, W*0.55);
+
+  if (S.temp > 200 && !S.casted){
+    const heat = Math.min(1, (S.temp-200)/3000);
+    const glow = ctx.createRadialGradient(cx, cy, 10, cx, cy, tw);
+    glow.addColorStop(0, rgb(255, 120 - heat*80, 20, 0.22 + heat*0.5));
+    glow.addColorStop(0.5, rgb(255, 70, 0, 0.15*heat));
+    glow.addColorStop(1, "rgba(255,80,0,0)");
+    ctx.fillStyle = glow; ctx.fillRect(0,0,W,H);
+  }
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cx - tw/2, cy - th/2);
+  ctx.lineTo(cx + tw/2, cy - th/2);
+  ctx.lineTo(cx + tw/2 - tw*0.055, cy + th/2);
+  ctx.quadraticCurveTo(cx, cy + th/2 + th*0.09, cx - tw/2 + tw*0.055, cy + th/2);
+  ctx.closePath();
+  const tg = ctx.createLinearGradient(cx - tw/2, 0, cx + tw/2, 0);
+  tg.addColorStop(0, "#3a4450"); tg.addColorStop(0.35, "#4a5562");
+  tg.addColorStop(0.6, "#2e3742"); tg.addColorStop(1, "#1c242c");
+  ctx.fillStyle = tg; ctx.fill();
+  ctx.strokeStyle = "#5a6878"; ctx.lineWidth = 3; ctx.stroke();
+  ctx.restore();
+
+  const inset = Math.max(6, tw*0.04);
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cx - tw/2 + inset, cy - th/2 + inset);
+  ctx.lineTo(cx + tw/2 - inset, cy - th/2 + inset);
+  ctx.lineTo(cx + tw/2 - inset - tw*0.04, cy + th/2 - inset);
+  ctx.quadraticCurveTo(cx, cy + th/2 - inset + th*0.05, cx - tw/2 + inset + tw*0.04, cy + th/2 - inset);
+  ctx.closePath();
+  ctx.clip();
+  ctx.fillStyle = "#0a0d11";
+  ctx.fillRect(cx - tw/2, cy - th/2, tw, th);
+
+  const comp = composition();
+  if (comp.length && !S.casted){
+    const level = Math.min(0.85, 0.15 + comp.length * 0.06 + (totalMass()/2000)*0.3);
+    const surfaceY = cy + th/2 - th*level;
+    const isLiquid = S.melted || S.temp >= alloyTm();
+    const col = mixBaseColor();
+    if (isLiquid) drawLiquid(cx, tw, th, surfaceY, cy + th/2, col);
+    else drawSolid(cx, tw, th, surfaceY, cy + th/2, comp);
+
+    if (S.refined && isLiquid && Math.random() < 0.3){
+      S.bubbles.push({
+        x: cx - tw/2 + inset + Math.random()*(tw - inset*2),
+        y: cy + th/2 - inset,
+        r: 1 + Math.random()*3,
+        vy: -0.5 - Math.random()*1.2, life: 1
+      });
+    }
+    S.bubbles = S.bubbles.filter(b => b.life > 0);
+    S.bubbles.forEach(b => {
+      b.y += b.vy; b.life -= 0.012;
+      ctx.globalAlpha = Math.max(0, b.life*0.9);
+      const bg2 = ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r);
+      bg2.addColorStop(0, "rgba(220,240,255,0.9)");
+      bg2.addColorStop(0.6, "rgba(180,210,240,0.4)");
+      bg2.addColorStop(1, "rgba(120,160,200,0)");
+      ctx.fillStyle = bg2;
+      ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cx - tw/2, cy - th/2);
+  ctx.lineTo(cx + tw/2, cy - th/2);
+  ctx.strokeStyle = "#6a7888"; ctx.lineWidth = Math.max(3, tw*0.015); ctx.stroke();
+  ctx.restore();
+
+  if (S.temp > 800 && !S.casted) drawFlame(cx, cy, tw, th);
+  if (S.casted && S.ingot) drawIngot(cx, cy, tw, th);
+
+  ctx.fillStyle = "rgba(232,237,243,.5)";
+  ctx.font = "11px Segoe UI"; ctx.textAlign = "center";
+  ctx.fillText(S.casted ? "СЛИТОК" : "ИНДУКЦИОННАЯ ПЕЧЬ", cx, H - 8);
+}
+
+function drawLiquid(cx, tw, th, surfaceY, bottomY, col){
+  const isHot = S.temp > 1200;
+  const heat = Math.min(1, Math.max(0, (S.temp - 800)/2500));
+  const left = cx - tw/2, right = cx + tw/2;
+  const step = 4;
+
+  const g = ctx.createLinearGradient(0, surfaceY, 0, bottomY);
+  g.addColorStop(0, rgb(col.r+40, col.g+40, col.b+40));
+  g.addColorStop(0.3, rgb(col.r, col.g, col.b));
+  g.addColorStop(0.75, rgb(col.r-30, col.g-30, col.b-30));
+  g.addColorStop(1, rgb(col.r-60, col.g-60, col.b-60));
+
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(left, bottomY);
+  ctx.lineTo(left, surfaceY);
+  for (let x = 0; x <= tw; x += step){
+    const y = surfaceY + Math.sin((x*0.045) + S.animPhase) * 3
+              + Math.sin((x*0.11) + S.animPhase*1.7) * 1.6
+              + Math.sin((x*0.02) - S.animPhase*0.7) * 2.2;
+    ctx.lineTo(left + x, y);
+  }
+  ctx.lineTo(right, bottomY);
+  ctx.closePath();
+  ctx.fill();
+
+  if (isHot){
+    const hg = ctx.createLinearGradient(0, surfaceY, 0, surfaceY + th*0.5);
+    hg.addColorStop(0, rgb(255, 180, 60, 0.45*heat));
+    hg.addColorStop(0.5, rgb(255, 90, 20, 0.25*heat));
+    hg.addColorStop(1, "rgba(255,50,0,0)");
+    ctx.fillStyle = hg;
+    ctx.beginPath();
+    ctx.moveTo(left, bottomY);
+    ctx.lineTo(left, surfaceY);
+    for (let x = 0; x <= tw; x += step){
+      const y = surfaceY + Math.sin((x*0.045) + S.animPhase) * 3
+                + Math.sin((x*0.11) + S.animPhase*1.7) * 1.6;
+      ctx.lineTo(left + x, y);
+    }
+    ctx.lineTo(right, bottomY);
+    ctx.closePath(); ctx.fill();
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  const hl = ctx.createRadialGradient(cx - tw*0.15, surfaceY + 4, 0, cx - tw*0.15, surfaceY + 4, tw*0.35);
+  hl.addColorStop(0, "rgba(255,255,255,0.5)");
+  hl.addColorStop(0.4, "rgba(255,255,255,0.15)");
+  hl.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = hl;
+  ctx.beginPath(); ctx.ellipse(cx - tw*0.15, surfaceY + 5, tw*0.3, 5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 0; x <= tw; x += step){
+    const y = surfaceY + Math.sin((x*0.045) + S.animPhase) * 3
+              + Math.sin((x*0.11) + S.animPhase*1.7) * 1.6;
+    if (x===0) ctx.moveTo(left + x, y); else ctx.lineTo(left + x, y);
+  }
+  ctx.stroke();
+
+  if (S.temp > 1500 && Math.random() < 0.4){
+    S.sparks.push({
+      x: left + Math.random()*tw, y: surfaceY,
+      vx: (Math.random()-0.5)*1.4, vy: -1 - Math.random()*2.2, life: 1
+    });
+  }
+  S.sparks = S.sparks.filter(s => s.life > 0);
+  S.sparks.forEach(s => {
+    s.x += s.vx; s.y += s.vy; s.vy += 0.04; s.life -= 0.02;
+    ctx.globalAlpha = Math.max(0, s.life);
+    ctx.fillStyle = "#ffd27a";
+    ctx.beginPath(); ctx.arc(s.x, s.y, 1, 0, Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
+
+function drawSolid(cx, tw, th, surfaceY, bottomY, comp){
+  const g = ctx.createLinearGradient(0, surfaceY, 0, bottomY);
+  g.addColorStop(0, "#1a1f26"); g.addColorStop(1, "#0a0d11");
+  ctx.fillStyle = g;
+  ctx.fillRect(cx - tw/2, surfaceY, tw, bottomY - surfaceY);
+
+  const n = Math.min(40, comp.reduce((a,c)=>a+Math.ceil(c.mass/100),0));
+  for (let i=0;i<n;i++){
+    const m = metalBySym(comp[i%comp.length].sym);
+    const tex = getMetalTexture(m.sym, 32);
+    const px = cx - tw/2 + tw*0.06 + ((i*53)%(tw*0.85));
+    const py = bottomY - 8 - ((i*37)%(th*0.55));
+    const s = Math.max(10, Math.min(22, tw*0.06));
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate((i%7)*0.4 - 0.6);
+    ctx.fillStyle = "rgba(0,0,0,.5)";
+    ctx.fillRect(-s/2 + 2, -s/2 + 2, s, s*0.7);
+    ctx.drawImage(tex, -s/2, -s/2, s, s*0.7);
+    ctx.restore();
+  }
+}
+
+function drawFlame(cx, cy, tw, th){
+  const intensity = Math.min(1, (S.temp-800)/2700);
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  for (let i=0;i<14;i++){
+    const fx = cx - tw/2 + Math.random()*tw;
+    const fy = cy - th/2 - Math.random()*40*intensity;
+    const r = 6 + Math.random()*16;
+    const g = ctx.createRadialGradient(fx, fy, 1, fx, fy, r);
+    const hue = 40 - intensity*30;
+    g.addColorStop(0, `hsla(${hue}, 100%, 70%, ${0.5*intensity})`);
+    g.addColorStop(0.4, `hsla(${hue-10}, 100%, 55%, ${0.22*intensity})`);
+    g.addColorStop(1, `hsla(${hue-20}, 100%, 50%, 0)`);
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(fx, fy, r, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawIngot(cx, cy, tw, th){
+  const w = tw*0.6, h = th*0.5;
+  const x = cx - w/2, y = cy - h/2;
+  const col = mixBaseColor();
+  const topH = Math.max(10, h*0.14);
+
+  ctx.fillStyle = "rgba(0,0,0,.45)";
+  ctx.beginPath();
+  ctx.ellipse(cx, y + h + 14, w*0.55, 9, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  const topGrad = ctx.createLinearGradient(x, y - topH, x + w, y);
+  topGrad.addColorStop(0, rgb(col.r+50, col.g+50, col.b+50));
+  topGrad.addColorStop(1, rgb(col.r+10, col.g+10, col.b+10));
+  ctx.fillStyle = topGrad;
+  ctx.beginPath();
+  ctx.moveTo(x, y); ctx.lineTo(x + w*0.15, y - topH);
+  ctx.lineTo(x + w*0.85, y - topH); ctx.lineTo(x + w, y);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 1; ctx.stroke();
+
+  const fg = ctx.createLinearGradient(x, y, x + w, y + h);
+  fg.addColorStop(0, rgb(col.r+30, col.g+30, col.b+30));
+  fg.addColorStop(0.4, rgb(col.r, col.g, col.b));
+  fg.addColorStop(0.75, rgb(col.r-35, col.g-35, col.b-35));
+  fg.addColorStop(1, rgb(col.r-60, col.g-60, col.b-60));
+  ctx.fillStyle = fg;
+  ctx.fillRect(x, y, w, h);
+
+  const sg = ctx.createLinearGradient(x + w, y, x + w*0.85, y + h);
+  sg.addColorStop(0, rgb(col.r-20, col.g-20, col.b-20));
+  sg.addColorStop(1, rgb(col.r-70, col.g-70, col.b-70));
+  ctx.fillStyle = sg;
+  ctx.beginPath();
+  ctx.moveTo(x + w, y); ctx.lineTo(x + w*0.85, y - topH);
+  ctx.lineTo(x + w*0.85, y + h - topH); ctx.lineTo(x + w, y + h);
+  ctx.closePath(); ctx.fill();
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  ctx.globalAlpha = 0.12;
+  for (let i=0;i<60;i++){
+    ctx.fillStyle = Math.random()>0.5 ? "#fff" : "#000";
+    ctx.beginPath();
+    ctx.arc(x + Math.random()*w, y + Math.random()*h, 0.6 + Math.random()*1.4, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = "rgba(255,255,255,0.15)"; ctx.lineWidth = 0.6;
+  for (let i=0;i<8;i++){
+    const sx = x + Math.random()*w, sy = y + Math.random()*h;
+    ctx.beginPath(); ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + (Math.random()-0.5)*30, sy + (Math.random()-0.5)*15);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  const hg = ctx.createRadialGradient(x + w*0.3, y + h*0.25, 0, x + w*0.3, y + h*0.25, w*0.4);
+  hg.addColorStop(0, "rgba(255,255,255,0.5)");
+  hg.addColorStop(0.4, "rgba(255,255,255,0.1)");
+  hg.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = hg; ctx.fillRect(x, y, w, h);
+  ctx.restore();
+
+  if (S.ingot && S.ingot.name){
+    ctx.fillStyle = "rgba(0,0,0,.6)";
+    ctx.font = `bold ${Math.max(11, Math.min(16, w*0.055))}px Segoe UI`;
+    ctx.textAlign = "center";
+    ctx.fillText(S.ingot.name, x + w/2, y + h*0.55);
+    ctx.fillStyle = "rgba(0,0,0,.45)";
+    ctx.font = `bold ${Math.max(8, Math.min(11, w*0.04))}px Consolas`;
+    ctx.fillText("СПЛАВ", x + w/2, y + h*0.55 + Math.max(10, w*0.045));
+  }
+  ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, h);
+}
+
+/* ============================================================
+   14. ЦИКЛ
+   ============================================================ */
+function tick(){
+  S.animPhase += 0.06;
+  if (S.melted || S.bubbles.length || S.sparks.length || S.temp > 800) draw();
+  requestAnimationFrame(tick);
+}
+/* ============================================================
+   ЗАПРЕТ ЗУМА И ВЫДЕЛЕНИЯ
+   ============================================================ */
+(function blockZoomAndSelection(){
+  // 1. Запрет пинч-зума (iOS Safari + Android)
+  document.addEventListener('gesturestart', e => e.preventDefault(), { passive: false });
+  document.addEventListener('gesturechange', e => e.preventDefault(), { passive: false });
+  document.addEventListener('gestureend', e => e.preventDefault(), { passive: false });
+
+  // 2. Запрет мультитач-зума через touch
+  document.addEventListener('touchmove', e => {
+    if (e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
+
+  // 3. Запрет двойного тапа-зума
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', e => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) e.preventDefault();
+    lastTouchEnd = now;
+  }, { passive: false });
+
+  // 4. Запрет Ctrl+колесо (зум в браузере) и Ctrl+«+/-/0»
+  window.addEventListener('wheel', e => {
+    if (e.ctrlKey) e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && ['+', '-', '=', '0'].includes(e.key)) {
+      e.preventDefault();
+    }
+  });
+
+  // 5. Запрет выделения через drag (mousedown + move)
+  document.addEventListener('mousedown', e => {
+    // не мешаем полям ввода и кнопкам
+    if (e.target.closest('input, textarea, button, [contenteditable="true"]')) return;
+    if (e.detail > 1) e.preventDefault(); // двойной/тройной клик
+  });
+
+  // 6. Запрет контекстного меню на canvas и картинках (по желанию)
+  document.querySelectorAll('canvas, .thumb, .preview').forEach(el => {
+    el.addEventListener('contextmenu', e => e.preventDefault());
+  });
+
+  // 7. Запрет выделения «протяжкой» мышью (Safari/Chrome fallback)
+  document.addEventListener('selectstart', e => {
+    if (!e.target.closest('input, textarea, [contenteditable="true"]')) {
+      e.preventDefault();
+    }
+  });
+})();
+/* ============================================================
+   15. СТАРТ
+   ============================================================ */
+function init(){
+  resize();
+  renderMetals();
+  recalcAll();
+  log(`«Сплавий» запущен. В базе ${ALLOYS.length} известных сплавов.`, "cool");
+  requestAnimationFrame(tick);
+}/* ============================================================
+   16. РЕЦЕПТЫ: просмотр и загрузка в тигель
+   ============================================================ */
+
+// Целевой состав рецепта: base + легирующие, всего 100%.
+// Берём середину диапазона каждого правила; если сумма > 100 — нормируем.
+function recipeTargets(alloy){
+  const entries = Object.entries(alloy.rules)
+    .filter(([sym]) => metalBySym(sym))           // <-- фильтр неизвестных
+    .map(([sym, [min, max]]) => {
+      let mid = (min + max) / 2;
+      if (alloy.virtual && alloy.virtual[sym] !== undefined) mid = alloy.virtual[sym];
+      return { sym, min, max, pct: mid };
+    });
+  const sum = entries.reduce((a, e) => a + e.pct, 0);
+  if (sum > 0) entries.forEach(e => { e.pct = e.pct / sum * 100; });
+  entries.forEach(e => { e.pct = Math.round(e.pct * 10) / 10; });
+  const diff = +(100 - entries.reduce((a, e) => a + e.pct, 0)).toFixed(1);
+  if (entries.length) entries[0].pct = +(entries[0].pct + diff).toFixed(1);
+  return entries;
+}
+
+// Граммы на 100 г шихты
+function recipeGrams(entries, totalG = 100){
+  return entries.map(e => ({
+    ...e,
+    g: Math.round(e.pct / 100 * totalG * 1000) / 1000
+  }));
+}
+
+let recipeFilter = "";
+
+function renderRecipeList(){
+  const list = $("recipeList");
+  const q = recipeFilter.trim().toLowerCase();
+  const items = ALLOYS
+    .map(a => ({ a, base: metalBySym(a.base) }))
+    .filter(x => x.base) // <-- добавляем проверку
+    .filter(x => {
+      if (!q) return true;
+      const hay = (x.a.name + " " + x.a.cat + " " + x.a.base + " " + x.base.name).toLowerCase();
+      return hay.includes(q);
+    })
+    .sort((x, y) => x.a.name.localeCompare(y.a.name, "ru"));
+  list.innerHTML = "";
+  if (!items.length){
+    list.innerHTML = `<div class="empty">Ничего не найдено</div>`;
+    return;
+  }
+  items.forEach(({ a }) => {
+    const el = document.createElement("div");
+    el.className = "recipe-item";
+    el.dataset.name = a.name;
+    el.innerHTML = `${a.name}<small>${a.cat} · основа ${metalBySym(a.base).name} (${a.base})</small>`;
+    el.onclick = () => selectRecipe(a.name);
+    list.appendChild(el);
+  });
+}
+
+let currentRecipeName = null;
+
+function selectRecipe(name){
+  currentRecipeName = name;
+  document.querySelectorAll(".recipe-item").forEach(el => {
+    el.classList.toggle("active", el.dataset.name === name);
+  });
+  renderRecipeDetail(name);
+}
+
+function renderRecipeDetail(name){
+  const box = $("recipeDetail");
+  const alloy = ALLOYS.find(a => a.name === name);
+  if (!alloy){ box.innerHTML = `<div class="empty">Сплав не найден</div>`; return; }
+
+  const baseMetal = metalBySym(alloy.base);
+  const targets = recipeTargets(alloy);
+  const grams = recipeGrams(targets, 100);
+
+  const totalMass = 100; // г на порцию
+const rows = grams.map(e => {
+  const m = metalBySym(e.sym);
+  if (!m) return ''; // <-- если металл не найден, пропускаем строку
+  const isBase = e.sym === alloy.base;
+  const range = `${e.min}–${e.max}%`;
+  return `<tr class="${isBase ? 'base-row' : ''}">
+    <td class="sym">${e.sym}</td>
+    <td>${m.name}${isBase ? ' <span style="color:var(--muted);font-size:10px">(основа)</span>' : ''}</td>
+    <td class="num">${e.pct.toFixed(1)}%</td>
+    <td class="num" style="color:var(--muted)">${range}</td>
+    <td class="num" style="color:var(--cool)">${e.g.toFixed(3)} г</td>
+  </tr>`;
+}).join('');
+
+  box.innerHTML = `
+    <div class="title">${alloy.name}</div>
+    <div class="sub">${alloy.cat} · основа ${baseMetal.name} (${alloy.base})</div>
+    <span class="badge">Порция: ${totalMass} г</span>
+    <span class="badge">Компонентов: ${grams.length}</span>
+    <span class="badge">Tпл ≈ ${Math.round(alloyTmFor(alloy))} °C</span>
+
+    <table class="recipe-table">
+      <thead>
+        <tr>
+          <th>Символ</th><th>Металл</th>
+          <th style="text-align:right">Цель, %</th>
+          <th style="text-align:right">Допуск</th>
+          <th style="text-align:right">Масса на 100 г</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+
+    <div class="recipe-actions">
+      <button class="btn-primary" id="recipeLoad100">Загрузить в тигель (100 г)</button>
+      <button class="btn-cast" id="recipeLoad500">Загрузить 500 г</button>
+      <button class="btn-clean" id="recipeLoadCustom">Своя масса…</button>
+    </div>
+    <div class="recipe-note">
+      Кнопки заполняют шихту указанной массой (граммы рассчитаны из целевых процентов,
+      округление до 0.001 г). После загрузки можно менять массы вручную — проценты
+      пересчитаются автоматически. Если в текущем тигле уже есть металлы, они будут
+      заменены.
+    </div>
+  `;
+
+  $("recipeLoad100").onclick = () => loadRecipeToCharge(alloy, 100);
+  $("recipeLoad500").onclick = () => loadRecipeToCharge(alloy, 500);
+  $("recipeLoadCustom").onclick = () => {
+    const v = prompt("Введите общую массу шихты, г:", "250");
+    if (v === null) return;
+    const m = parseMass(v);
+    if (m === null || m <= 0 || m > 100000){
+      log("Некорректная масса.", "err");
+      return;
+    }
+    loadRecipeToCharge(alloy, m);
+  };
+}
+
+// Оценка Tпл для рецепта (для бейджа) — та же формула, что в alloyTm
+function alloyTmFor(alloy){
+  const entries = recipeTargets(alloy); // уже отфильтрованы
+  let tm = 0;
+  entries.forEach(e => {
+    const m = metalBySym(e.sym);
+    if (m) tm += m.tm * e.pct / 100;
+  });
+  const n = entries.length;
+  const drop = Math.min(0.35, Math.max(0, (n - 1) * 0.06));
+  return Math.max(20, tm * (1 - drop));
+}
+
+/* ============================================================
+   ПРАВИЛО РЫЧАГА + БИНАРНАЯ ДИАГРАММА (упрощённая)
+   ============================================================ */
+
+// Упрощённая бинарная система с эвтектикой:
+//   T_A, T_B — плавления компонентов
+//   T_E, c_E — эвтектика (c_E — % B в эвтектике)
+// Ликвидус: от A(0%) к T_E, затем от T_E к B(100%).
+function binaryPhase(baseSym, alloySym, cE = 0.5, T_E = null, type="eutectic"){
+  const mA = metalBySym(baseSym), mB = metalBySym(alloySym);
+  if (!mA || !mB) return null;
+  const TA = mA.tm, TB = mB.tm;
+  const TE = T_E ?? (Math.min(TA,TB) * 0.6);
+  const c = Math.max(0.02, Math.min(0.98, cE));
+  return {TA, TB, TE, cE:c, type, baseSym, alloySym};
+}
+
+// Ликвидус при содержании c (доля B)
+function liquidusT(diag, c){
+  if (!diag) return null;
+  const {TA, TB, TE, cE, type} = diag;
+  if (type === "eutectic"){
+    if (c <= cE) return TA + (TE - TA) * (c / cE);
+    return TE + (TB - TE) * ((c - cE) / (1 - cE));
+  }
+  // перитектика — упрощённо как эвтектика (линейно)
+  if (c <= cE) return TA + (TE - TA) * (c / cE);
+  return TE + (TB - TE) * ((c - cE) / (1 - cE));
+}
+// Солидус (упрощённый, для эвтектики — горизонталь T_E при c<=cE, иначе линия до TB)
+function solidusT(diag, c){
+  if (!diag) return null;
+  const {TB, TE, cE, type} = diag;
+  if (type === "eutectic"){
+    if (c <= cE) return TE;
+    return TE + (TB - TE) * ((c - cE) / (1 - cE));
+  }
+  return TE;
+}
+
+// Правило рычага: доли твёрдой/жидкой фаз при T в двухфазной области
+// C0 — общий состав (% B), C_S и C_L — составы твёрдой и жидкой фаз
+function leverRule(C0, C_S, C_L){
+  if (C_L === C_S) return {fSolid:0, fLiquid:1};
+  const fL = (C0 - C_S) / (C_L - C_S);
+  return {fSolid: 1 - fL, fLiquid: fL};
+}
+
+// Для данной пары (base, alloy) и общего состава C0 найти C_S и C_L при T
+function phaseFractionsAtT(baseSym, alloySym, C0, T){
+  const diag = binaryPhase(baseSym, alloySym);
+  if (!diag) return null;
+  const {TA,TB,TE,cE,type} = diag;
+  const Tl = liquidusT(diag, C0);
+  const Ts = solidusT(diag, C0);
+  if (T >= Tl) return {fSolid:0, fLiquid:1, C_S:null, C_L:C0, T, Tl, Ts};
+  if (T <= Ts) return {fSolid:1, fLiquid:0, C_S:C0, C_L:null, T, Tl, Ts};
+  // Двухфазная область
+  if (type === "eutectic"){
+    if (C0 <= cE){
+      // между чистым A и эвтектикой: C_S ~ 0, C_L на ликвидусе
+      const CS = 0;
+      // состав жидкости из ликвидуса при T: c = cE*(TA - T)/(TA - TE)
+      const CL = cE * (TA - T) / (TA - TE);
+      const {fSolid, fLiquid} = leverRule(C0, CS, CL);
+      return {fSolid, fLiquid, C_S:CS, C_L:CL, T, Tl, Ts};
+    } else {
+      // между эвтектикой и B
+      const CS = cE;
+      // жидкость при T: c = cE + (1-cE)*(T-TE)/(TB-TE)
+      const CL = cE + (1-cE)*(T-TE)/(TB-TE);
+      const {fSolid, fLiquid} = leverRule(C0, CS, CL);
+      return {fSolid, fLiquid, C_S:CS, C_L:CL, T, Tl, Ts};
+    }
+  }
+  return {fSolid:0.5, fLiquid:0.5, C_S:C0, C_L:C0, T, Tl, Ts};
+}
+
+
+/* ============================================================
+   ПРАВИЛО ГИББСА (фазовое правило)
+   F = C - P + 2  (или +1 при постоянном давлении)
+   ============================================================ */
+function gibbsFreedom(components, phases, constPressure = true){
+  const C = Math.max(1, components);
+  const P = Math.max(1, phases);
+  return C - P + (constPressure ? 1 : 2);
+}
+// Определяем число фаз по состоянию системы
+function currentPhases(){
+  if (!S.charge.length) return 0;
+  const comp = composition();
+  if (S.casted) return 1; // слиток (одна фаза — твёрдый сплав, упрощённо)
+  const tm = alloyTm();
+  if (S.temp >= tm) return 1;           // расплав
+  if (S.temp < tm * 0.4) return 1;      // твёрдое
+  return 2;                              // двухфазная зона
+}
+
+/* ============================================================
+   НЕДОСТАЮЩИЕ ФУНКЦИИ (усадка, Аррениус, Кубо-Хонда,
+   Нордгейм, раскисление, обратная шихта, термообработка)
+   ============================================================ */
+
+// Вязкость расплава (Па·с), усреднённо
+const MU_LIQ = 5e-3;
+
+/* ---------- УСАДКА ---------- */
+function shrinkage(){
+  const comp = composition();
+  if (!comp.length) return {vol:0, lin:0};
+  let sum = 0;
+  comp.forEach(c => {
+    const m = metalBySym(c.sym);
+    const s = Math.max(0.02, Math.min(0.10, 0.03 + m.tm / 50000));
+    sum += s * c.pct / 100;
+  });
+  const vol = sum * 100;
+  return {vol, lin: vol / 3};
+}
+function shrinkageCavity(mass_g, shrink_pct){
+  const volMetal = mass_g / 8.0;
+  return volMetal * shrink_pct / 100;
+}
+function feedingDistance(k_permeability = 1e-10, dP = 1e4, eps_v = 0.05){
+  return Math.sqrt(2 * k_permeability * dP / (MU_LIQ * Math.max(1e-4, eps_v/100)));
+}
+
+/* ---------- АРРЕНИУС ---------- */
+function arrheniusD(sym, T_K){
+  const d = DIFF[sym] || DIFF.default;
+  return d.D0 * Math.exp(-d.Q * 1000 / (R_GAS * Math.max(1, T_K)));
+}
+function grainGrowth(d0_um, T_K, t_s, baseSym = "Fe"){
+  const d = DIFF[baseSym] || DIFF.default;
+  const k0 = 1e-3;
+  const k = k0 * Math.exp(-d.Q * 1000 / (R_GAS * Math.max(1, T_K)));
+  const d2 = d0_um * d0_um + k * t_s;
+  return Math.sqrt(Math.max(d0_um*d0_um, d2));
+}
+function temperingHardness(H0, T_C, t_s, alloyBase="Fe"){
+  if (T_C < 100) return H0;
+  const T_K = T_C + 273.15;
+  const d = DIFF[alloyBase] || DIFF.default;
+  const k = 1e-2 * Math.exp(-d.Q * 1000 / (R_GAS * T_K));
+  const Hmin = Math.max(5, H0 * 0.3);
+  const drop = (H0 - Hmin) * (1 - Math.exp(-k * t_s / 60));
+  return Math.max(Hmin, H0 - drop);
+}
+function diffusionRate(sym, T_C){
+  return arrheniusD(sym, T_C + 273.15);
+}
+
+/* ---------- КУБО-ХОНДА ---------- */
+const MAG = {
+  Fe:{Ms:2.2, Tc:1043, mu:2.22},
+  Ni:{Ms:0.62, Tc:631,  mu:0.60},
+  Co:{Ms:1.79, Tc:1393, mu:1.72},
+  Gd:{Ms:2.0, Tc:293, mu:7.1},
+  default:{Ms:0, Tc:0, mu:0}
+};
+function magneticProps(){
+  const comp = composition();
+  if (!comp.length) return null;
+  let Ms=0, Tc=0, totalMag=0;
+  comp.forEach(c => {
+    const m = MAG[c.sym] || MAG.default;
+    if (m.Ms > 0){
+      const w = c.pct/100;
+      Ms += m.Ms * w;
+      Tc += m.Tc * w;
+      totalMag += w;
+    }
+  });
+  if (totalMag === 0) return {ferro:false, Ms:0, Tc:0};
+  Ms /= totalMag;
+  Tc /= totalMag;
+  return {ferro:true, Ms: +Ms.toFixed(2), Tc: Math.round(Tc), fraction: +totalMag.toFixed(2)};
+}
+
+/* ---------- НОРДГЕЙМ ---------- */
+function nordheimTm(symA, symB, cA = 0.5, cB = 0.5){
+  const mA = metalBySym(symA), mB = metalBySym(symB);
+  if (!mA || !mB) return null;
+  const Tm = (mA.tm + mB.tm) / 2;
+  const K = NORDHEIM_K * 100;
+  return Math.max(20, Tm + K * Math.sqrt(cA * cB));
+}
+function intermetallics(){
+  const comp = composition();
+  if (!comp.length) return [];
+  const res = [];
+  for (let i=0;i<comp.length;i++){
+    for (let j=i+1;j<comp.length;j++){
+      const a = comp[i], b = comp[j];
+      const cA = a.pct/100, cB = b.pct/100;
+      if (a.pct < 1 || b.pct < 1) continue;
+      const tm = nordheimTm(a.sym, b.sym, cA, cB);
+      res.push({A:a.sym, B:b.sym, tm:Math.round(tm)});
+    }
+  }
+  return res.sort((x,y)=>y.tm-x.tm);
+}
+
+/* ---------- РАСКИСЛЕНИЕ ---------- */
+function deoxidation(T_C = 1600){
+  const T_K = T_C + 273.15;
+  const rows = [];
+  for (const [sym, r] of Object.entries(DEOX_REACTIONS)){
+    const dG = r.A + r.B * T_K;
+    rows.push({sym, name:r.name, dG});
+  }
+  rows.sort((a,b)=>a.dG-b.dG);
+  return rows;
+}
+function equilibriumO(sym, T_C, me_pct){
+  const r = DEOX_REACTIONS[sym];
+  if (!r) return null;
+  const T_K = T_C + 273.15;
+  const dG = r.A + r.B * T_K;
+  const Keq = Math.exp(-dG * 1000 / (R_GAS * T_K));
+  return Math.max(0.001, 1e6 / (Keq * Math.max(0.01, me_pct)));
+}
+
+/* ---------- ОБРАТНАЯ ШИХТА ---------- */
+function inverseCharge(targets, totalG = 100){
+  const syms = Object.keys(targets).filter(s => metalBySym(s) && targets[s] > 0);
+  const sum = syms.reduce((a,s)=>a+targets[s],0);
+  if (sum <= 0) return null;
+  return syms.map(s => ({
+    sym: s,
+    mass: +(targets[s] / sum * totalG).toFixed(3)
+  }));
+}
+
+/* ---------- ТЕРМООБРАБОТКА ---------- */
+function baseHardnessHV(){
+  const p = alloyProps();
+  return p ? p.hardness : 0;
+}
+function quenchHardness(H0, T_quench_C, baseSym="Fe"){
+  const factor = Math.min(2.0, 1 + (T_quench_C - 800) / 1200);
+  return Math.round(Math.max(H0, H0 * factor));
+}
+function temperHardness(H_quench, T_C, t_min, baseSym="Fe"){
+  return Math.round(temperingHardness(H_quench, T_C, t_min*60, baseSym));
+}
+function normalizeHardness(H0, T_C = 900){
+  return Math.round(H0 * (0.95 + 0.001 * T_C));
+}
+function agingHardness(H0, T_C, t_min, baseSym="Al"){
+  return Math.round(temperingHardness(H0, T_C, t_min*60, baseSym) * 1.1);
+}
+function heatTreatment(mode, T_C, t_min){
+  const H0 = baseHardnessHV();
+  const base = composition()[0]?.sym || "Fe";
+  const results = [];
+  if (mode === "quench"){
+    results.push({step:"Закалка", T:T_C, H:quenchHardness(H0, T_C, base)});
+    return results;
+  }
+  if (mode === "temper"){
+    const Hq = quenchHardness(H0, 900, base);
+    results.push({step:"Закалка", T:900, H:Hq});
+    results.push({step:"Отпуск",  T:T_C, H:temperHardness(Hq, T_C, t_min, base)});
+    return results;
+  }
+  if (mode === "normalize"){
+    results.push({step:"Нормализация", T:T_C, H:normalizeHardness(H0, T_C)});
+    return results;
+  }
+  if (mode === "age"){
+    results.push({step:"Закалка",  T:T_C, H:quenchHardness(H0, T_C, base)});
+    results.push({step:"Старение", T:T_C, H:agingHardness(H0, T_C, t_min, base)});
+    return results;
+  }
+  return results;
+}
+function loadRecipeToCharge(alloy, totalG){
+  if (S.casted){ log("Слиток уже отлит. Сбросьте печь (кнопка «Сброс»).", "warn"); return; }
+  if (S.melted){ log("Расплав уже готов. Сбросьте печь, чтобы загрузить рецепт.", "warn"); return; }
+
+  const targets = recipeTargets(alloy);
+  const grams = recipeGrams(targets, totalG);
+
+  // чистим тигель и заполняем заново
+  S.charge = grams.map(e => ({
+    sym: e.sym,
+    mass: Math.max(0.001, Math.round(e.g * 1000) / 1000)
+  }));
+
+  log(`Рецепт «${alloy.name}» загружен: ${S.charge.length} компонентов, ${totalG} г.`, "ok");
+  recalcAll();
+  closeRecipeModal();
+}
+
+/* ============================================================
+   ТЕПЛОФИЗИКА: аддитивные E, ν, Cp, λ, a, L
+   ============================================================ */
+function alloyThermophys(){
+  const comp = composition();
+  if (!comp.length) return {E:0, nu:0, Cp:1, lam:0, L:0, rho:0, a:0};
+  let E=0, nu=0, Cp=0, lam=0, L=0, mass=0;
+  comp.forEach(c => {
+    const p = PHYS[c.sym] || PHYS.Fe;
+    const w = c.pct/100;
+    E  += p.E  * w;
+    nu += p.nu * w;
+    Cp += p.Cp * w;
+    lam+= p.lam* w;
+    L  += p.L  * w;
+    mass += p.rho * w;
+  });
+  const rho = alloyDensity() || mass || 1;
+  const a = (lam / (rho * 1000 * Math.max(1, Cp))) * 1e6; // мм²/с
+  return {E, nu, Cp, lam, L, rho, a};
+}
+
+
+/* --- открытие/закрытие модалки --- */
+function openRecipeModal(){
+  $("recipeModal").classList.remove("hidden");
+  $("recipeCount").textContent = `(${ALLOYS.length})`;
+  renderRecipeList();
+  if (currentRecipeName && ALLOYS.some(a => a.name === currentRecipeName)){
+    selectRecipe(currentRecipeName);
+  } else {
+    $("recipeDetail").innerHTML = `<div class="empty">Выберите сплав слева</div>`;
+  }
+}
+function closeRecipeModal(){ $("recipeModal").classList.add("hidden"); }
+
+$("btnRecipes").onclick = openRecipeModal;
+$("recipeClose").onclick = closeRecipeModal;
+$("recipeSearch").oninput = e => { recipeFilter = e.target.value; renderRecipeList(); };
+$("recipeModal").addEventListener("click", e => {
+  if (e.target.id === "recipeModal") closeRecipeModal();
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") closeRecipeModal();
+});
+init();
+</script>
+</body>
+</html>
